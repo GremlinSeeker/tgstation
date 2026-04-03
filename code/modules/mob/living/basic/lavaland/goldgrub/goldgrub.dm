@@ -83,7 +83,7 @@
 	if(stat != CONSCIOUS)
 		return COMPONENT_BULLET_PIERCED
 
-	///high penetration bullets should still go through. No goldgrub can save you from the colossus' death bolts.
+	/// High penetration bullets should still go through. No goldgrub can save you from the colossus' death bolts.
 	if(prob(hitting_projectile.armour_penetration))
 		return NONE
 
@@ -94,6 +94,7 @@
 	playsound(src, 'sound/effects/splat.ogg', 50, TRUE)
 	for(var/obj/item/stack/ore/ore in src)
 		ore.forceMove(loc)
+
 	if(!gibbed)
 		visible_message(span_danger("[src] spits out its consumed ores!"))
 
@@ -117,6 +118,7 @@
 	AddComponent(/datum/component/tameable, food_types = food_types, tame_chance = 25, bonus_tame_chance = 5)
 
 /mob/living/basic/mining/goldgrub/tamed(mob/living/tamer, atom/food)
+	. = ..()
 	new /obj/effect/temp_visual/heart(src.loc)
 	AddElement(/datum/element/ridable, /datum/component/riding/creature/goldgrub)
 	AddComponent(/datum/component/obeys_commands, pet_commands)

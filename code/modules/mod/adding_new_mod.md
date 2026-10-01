@@ -192,13 +192,14 @@ As it's a medical module, we'll put it [here](modules/modules_medical.dm). Let's
 
 ```dm
 /obj/item/mod/module/neuron_healer
-	name = "MOD neuron healer module"
+	name = "\improper MOD neuron healer module"
 	desc = "A module made experimentally by DeForest Medical Corporation. On demand it releases waves \
 		that heal neuron damage of everyone nearby, getting their brains to a better state."
 	icon_state = "neuron_healer"
 ```
 
 As we want this effect to be on demand, we probably want this to be an usable module. There are four types of modules:
+
 - Passive: These have a passive effect.
 - Togglable: You can turn these on and off.
 - Usable: You can use these for a one time effect.
@@ -208,7 +209,7 @@ As we have an usable module, we want to set a cooldown time. All modules are als
 
 ```dm
 /obj/item/mod/module/neuron_healer
-	name = "MOD neuron healer module"
+	name = "\improper MOD neuron healer module"
 	desc = "A module made experimentally by DeForest Medical Corporation. On demand it releases waves \
 		that heal neuron damage of everyone nearby, getting their brains to a better state."
 	icon_state = "neuron_healer"
@@ -244,7 +245,7 @@ We now have a basic module, we can add it to the techwebs to make it printable i
 
 ```dm
 /obj/item/mod/module/neuron_healer/advanced
-	name = "MOD advanced neuron healer module"
+	name = "\improper MOD advanced neuron healer module"
 	complexity = 0
 	brain_damage_healed = 50
 ```
@@ -312,4 +313,5 @@ Now we want to add it to the psychological theme, which is very simple, finishin
 ```
 
 ## Ending
+
 This finishes this hopefully easy to follow along tutorial. You should now know how to make a basic theme, a skin for it, and a module.

@@ -4,8 +4,8 @@
 
 /datum/asset/spritesheet_batched/crafting/create_spritesheets()
 	var/id = 1
-	for(var/atom in GLOB.crafting_recipes_atoms)
-		add_atom_icon(atom, id++)
+	for(var/datum in GLOB.crafting_recipes_datums)
+		add_atom_icon(datum, id++)
 	add_tool_icons()
 
 /datum/asset/spritesheet_batched/crafting/cooking
@@ -13,8 +13,8 @@
 
 /datum/asset/spritesheet_batched/crafting/cooking/create_spritesheets()
 	var/id = 1
-	for(var/atom in GLOB.cooking_recipes_atoms)
-		add_atom_icon(atom, id++)
+	for(var/datum in GLOB.cooking_recipes_datums)
+		add_atom_icon(datum, id++)
 
 /**
  * Adds the ingredient icon to the spritesheet with given ID
@@ -35,9 +35,13 @@
 		if(istype(style))
 			icon_file = style.icon
 			icon_state = style.icon_state
+	// Hardcoded for now, I suppose. Revisit later with bespoke "generic" icons for abstract types i.e. if(ingredient_typepath == ingredient_typepath::abstract_type) ?
+	else if(ingredient_typepath == /obj/item/food || ingredient_typepath == /obj/item/food/grown || ingredient_typepath == /obj/item/grown)
+		icon_file = 'icons/effects/random_spawners.dmi'
+		icon_state = "questionmark"
 
-	icon_file ||= initial(preview_item.icon_preview) || initial(preview_item.icon)
-	icon_state ||= initial(preview_item.icon_state_preview) || initial(preview_item.icon_state)
+	icon_file ||= preview_item::icon_preview || preview_item::icon
+	icon_state ||= preview_item::icon_state_preview || preview_item::icon_state
 
 	if(PERFORM_ALL_TESTS(focus_only/bad_cooking_crafting_icons))
 		if(!icon_exists_or_scream(icon_file, icon_state))
@@ -50,7 +54,7 @@
 	var/list/tool_icons = list(
 		TOOL_CROWBAR = uni_icon('icons/obj/tools.dmi', "crowbar"),
 		TOOL_MULTITOOL = uni_icon('icons/obj/devices/tool.dmi', "multitool"),
-		TOOL_SCREWDRIVER = uni_icon('icons/obj/tools.dmi', "screwdriver_map"),
+		TOOL_SCREWDRIVER = uni_icon('icons/map_icons/items/_item.dmi', "/obj/item/screwdriver"),
 		TOOL_WIRECUTTER = uni_icon('icons/obj/tools.dmi', "cutters_map"),
 		TOOL_WRENCH = uni_icon('icons/obj/tools.dmi', "wrench"),
 		TOOL_WELDER = uni_icon('icons/obj/tools.dmi', "welder"),

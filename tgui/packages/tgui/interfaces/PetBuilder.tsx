@@ -15,6 +15,7 @@ import {
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
 import { IconDisplay } from './LootPanel/IconDisplay';
+
 type Data = {
   pet_name: string | null;
   pet_specie: string;
@@ -25,7 +26,7 @@ type Data = {
   pet_options: PetOptions[];
   pet_carrier: string;
   carrier_options: CarrierOptions[];
-  pet_possible_emotes: String[];
+  pet_possible_emotes: string[];
 };
 
 enum PetGender {
@@ -98,8 +99,8 @@ export const PetBuilder = (props) => {
   const [selectedGender, setSelectedGender] = useState(pet_gender);
 
   const ScrollPetSpecies = (direction: string) => {
-    let dir = direction === 'next' ? 1 : -1;
-    let currindex = pet_types.indexOf(selectedSpecie);
+    const dir = direction === 'next' ? 1 : -1;
+    const currindex = pet_types.indexOf(selectedSpecie);
     const newSpecie =
       pet_types[(currindex + dir + pet_types.length) % pet_types.length];
 
@@ -113,8 +114,8 @@ export const PetBuilder = (props) => {
     if (!selectedPet) {
       return;
     }
-    let dir = direction === 'next' ? 1 : -1;
-    let currindex = filteredPetList.indexOf(selectedPet);
+    const dir = direction === 'next' ? 1 : -1;
+    const currindex = filteredPetList.indexOf(selectedPet);
     setSelectedPet(
       filteredPetList[
         (currindex + dir + filteredPetList.length) % filteredPetList.length
@@ -185,7 +186,7 @@ export const PetBuilder = (props) => {
                 setSelectedGender={setSelectedGender}
               />
               <Flex>
-                <Flex.Item width="70px">
+                <Flex.Item width="80px">
                   <CarrierSelector
                     selectedCarrier={selectedCarrier}
                     carrier_options={carrier_options}
@@ -306,7 +307,7 @@ const PetDetails = ({
               width="220px"
               maxLength={30}
               value={selectedName}
-              onInput={(_, value) => setSelectedName(value)}
+              onChange={setSelectedName}
               style={{ borderRadius: '1em' }}
             />
           </Stack.Item>
@@ -369,11 +370,11 @@ const TrickSequence = ({
     title={TrickName}
     buttons={
       <Button.Input
+        buttonText="Rename"
         color="transparent"
-        onCommit={(_, value) => setTrickName(value)}
-      >
-        Rename
-      </Button.Input>
+        onCommit={setTrickName}
+        value={TrickName}
+      />
     }
   >
     <Box ml={2}>
@@ -399,7 +400,7 @@ const CarrierSelector = ({
   setSelectedCarrier,
 }: any) => (
   <Flex grow>
-    <Flex.Item width="30%">
+    <Flex.Item width="100%">
       <Stack vertical>
         <Stack.Item>
           <Image
@@ -412,7 +413,7 @@ const CarrierSelector = ({
         </Stack.Item>
         <Stack.Item>
           <Dropdown
-            width="70px"
+            width="80px"
             selected={selectedCarrier?.carrier_color}
             options={carrier_options.map(
               (carrier: any) => carrier.carrier_color,

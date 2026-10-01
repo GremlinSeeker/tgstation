@@ -23,7 +23,7 @@
 		return
 
 	notify_ghosts(
-		"[user] has purchased a BADASS Syndicate Balloon!",
+		"[user.real_name] has purchased a BADASS Syndicate Balloon!",
 		source = .,
 		header = "What are they THINKING?",
 	)
@@ -59,6 +59,7 @@
 	name = "Clown Costume"
 	desc = "Nothing is more terrifying than clowns with fully automatic weaponry."
 	item = /obj/item/storage/backpack/duffelbag/clown/syndie
+	// Not purchaseable from clown ops, because they are already clowns
 
 /datum/uplink_item/badass/costumes/tactical_naptime
 	name = "Sleepy Time Pajama Bundle"
@@ -66,12 +67,14 @@
 	item = /obj/item/storage/box/syndie_kit/sleepytime
 	limited_stock = 1
 	cant_discount = TRUE
+	purchasable_from = parent_type::purchasable_from | UPLINK_CLOWN_OPS
 
 /datum/uplink_item/badass/costumes/obvious_chameleon
 	name = "Broken Chameleon Kit"
 	desc = "A set of items that contain chameleon technology allowing you to disguise as pretty much anything on the station, and more! \
 			Please note that this kit did NOT pass quality control."
 	item = /obj/item/storage/box/syndie_kit/chameleon/broken
+	purchasable_from = parent_type::purchasable_from | UPLINK_CLOWN_OPS
 
 /datum/uplink_item/badass/costumes/centcom_official
 	name = "CentCom Official Costume"
@@ -103,3 +106,9 @@
 	desc = "Provides a surplus pinpointer, left over from the previous models that were abandoned in favor of a SAAS cloud-based PDA app."
 	item = /obj/item/pinpointer/nuke/syndicate
 	cost = 2
+
+/datum/uplink_item/badass/dangerous_horse
+	name = "a boxed syndicate pony"
+	desc = "This box contains everything for a better life. Pony, a mind potion for this pony, an apple for this pony. For God's sake, don't make apple pie!"
+	item = /obj/item/storage/box/syndicate/horse_box
+	cost = 10

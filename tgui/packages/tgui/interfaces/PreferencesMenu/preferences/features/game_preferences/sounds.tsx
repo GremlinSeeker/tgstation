@@ -1,9 +1,9 @@
 import {
   CheckboxInput,
-  Feature,
-  FeatureChoiced,
+  type Feature,
+  type FeatureChoiced,
   FeatureSliderInput,
-  FeatureToggle,
+  type FeatureToggle,
 } from '../base';
 import { FeatureDropdownInput } from '../dropdowns';
 
@@ -56,6 +56,13 @@ export const sound_instruments: Feature<number> = {
   component: FeatureSliderInput,
 };
 
+export const sound_jukebox: Feature<number> = {
+  name: 'Jukebox volume',
+  category: 'SOUND',
+  description: 'Volume of jukebox tracks.',
+  component: FeatureSliderInput,
+};
+
 export const sound_tts: FeatureChoiced = {
   name: 'Enable TTS',
   category: 'SOUND',
@@ -66,10 +73,35 @@ export const sound_tts: FeatureChoiced = {
   component: FeatureDropdownInput,
 };
 
+export const sound_tts_radio: FeatureChoiced = {
+  name: 'Enable TTS Over Radio',
+  category: 'SOUND',
+  description: `
+    When enabled, be able to hear text-to-speech sounds in game over radio channels.
+    When set to "Departmental Radio Only", text to speech over the radio will only play for departmental radio channels. Anything that isn't Common.
+    When disabled, text to speech will not play over radio sources.
+  `,
+  component: FeatureDropdownInput,
+};
+
+export const sound_tts_hear_self_radio: FeatureToggle = {
+  name: 'Enable TTS Hear Self Over Radio',
+  category: 'SOUND',
+  description: 'When enabled, hear yourself over the radio when Text to Speech and TTS Over Radio is enabled.',
+  component: CheckboxInput,
+};
+
 export const sound_tts_volume: Feature<number> = {
   name: 'TTS Volume',
   category: 'SOUND',
   description: 'The volume that the text-to-speech sounds will play at.',
+  component: FeatureSliderInput,
+};
+
+export const sound_tts_radio_volume: Feature<number> = {
+  name: 'TTS Radio Volume',
+  category: 'SOUND',
+  description: 'The volume that radio text-to-speech sounds will play at. This is independent of regular TTS volume.',
   component: FeatureSliderInput,
 };
 
@@ -104,9 +136,9 @@ export const sound_achievement: FeatureChoiced = {
 };
 
 export const sound_radio_noise: Feature<number> = {
-  name: 'Radio noise volume',
+  name: 'Radio sound volume',
   category: 'SOUND',
-  description: `Volume of talking and hearing radio chatter sounds.`,
+  description: 'Volume of the bloops that play when a radio message is said or received.',
   component: FeatureSliderInput,
 };
 

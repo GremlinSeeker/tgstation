@@ -18,13 +18,15 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 		SSair.remove_from_active(new_turf)
 		CALCULATE_ADJACENT_TURFS(new_turf, KILL_EXCITED)
 
-/turf/proc/copyTurf(turf/copy_to_turf)
+/turf/proc/copyTurf(turf/copy_to_turf, copy_air = FALSE, flags = null)
 	if(copy_to_turf.type != type)
-		copy_to_turf.ChangeTurf(type)
+		copy_to_turf.ChangeTurf(type, null, flags)
 	if(copy_to_turf.icon_state != icon_state)
 		copy_to_turf.icon_state = icon_state
 	if(copy_to_turf.icon != icon)
 		copy_to_turf.icon = icon
+	if(length(custom_materials))
+		copy_to_turf.set_custom_materials(custom_materials)
 	if(LAZYLEN(atom_colours))
 		copy_to_turf.atom_colours = atom_colours.Copy()
 		copy_to_turf.update_atom_colour()
@@ -35,7 +37,7 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 		copy_to_turf.setDir(dir)
 	return copy_to_turf
 
-/turf/open/copyTurf(turf/open/copy_to_turf, copy_air = FALSE)
+/turf/open/copyTurf(turf/open/copy_to_turf, copy_air = FALSE, flags = null)
 	. = ..()
 	ASSERT(istype(copy_to_turf, /turf/open))
 	var/datum/component/wet_floor/slip = GetComponent(/datum/component/wet_floor)
@@ -69,6 +71,7 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 
 	if(!GLOB.use_preloader && path == type && !(flags & CHANGETURF_FORCEOP) && (baseturfs == new_baseturfs)) // Don't no-op if the map loader requires it to be reconstructed, or if this is a new set of baseturfs
 		return src
+
 	if(flags & CHANGETURF_SKIP)
 		return new path(src)
 
@@ -78,7 +81,6 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 	var/old_lighting_corner_SW = lighting_corner_SW
 	var/old_lighting_corner_NW = lighting_corner_NW
 	var/old_directional_opacity = directional_opacity
-	var/old_dynamic_lumcount = dynamic_lumcount
 	var/old_rcd_memory = rcd_memory
 	var/old_explosion_throw_details = explosion_throw_details
 	var/old_opacity = opacity
@@ -106,16 +108,9 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 	var/list/old_listen_lookup = _listen_lookup?.Copy()
 	var/list/old_signal_procs = _signal_procs?.Copy()
 	var/carryover_turf_flags = (RESERVATION_TURF | UNUSED_RESERVATION_TURF) & turf_flags
-	var/turf/new_turf = new path(src)
+	// Turf references survive replacement, but their signal lists must be set before Initialize.
+	var/turf/new_turf = new path(src, old_listen_lookup, old_signal_procs)
 	new_turf.turf_flags |= carryover_turf_flags
-
-	// WARNING WARNING
-	// Turfs DO NOT lose their signals when they get replaced, REMEMBER THIS
-	// It's possible because turfs are fucked, and if you have one in a list and it's replaced with another one, the list ref points to the new turf
-	if(old_listen_lookup)
-		LAZYOR(new_turf._listen_lookup, old_listen_lookup)
-	if(old_signal_procs)
-		LAZYOR(new_turf._signal_procs, old_signal_procs)
 
 	for(var/datum/callback/callback as anything in post_change_callbacks)
 		callback.InvokeAsync(new_turf)
@@ -148,8 +143,6 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 	lighting_corner_SW = old_lighting_corner_SW
 	lighting_corner_NW = old_lighting_corner_NW
 
-	dynamic_lumcount = old_dynamic_lumcount
-
 	lattice_underneath = old_lattice_underneath
 
 	new_turf.weak_reference = old_ref
@@ -157,8 +150,12 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 	if(SSlighting.initialized)
 		// Space tiles should never have lighting objects
 		if(!space_lit)
+			if(old_lighting_object)
+				lighting_object = old_lighting_object
+				vis_contents += lighting_object
 			// Should have a lighting object if we never had one
-			lighting_object = old_lighting_object || new /datum/lighting_object(src)
+			else
+				new /atom/movable/lighting_object(null, src)
 		else if (old_lighting_object)
 			qdel(old_lighting_object, force = TRUE)
 
@@ -192,7 +189,7 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 			space_tile.enable_starlight()
 
 	if(old_opacity != opacity && SSticker)
-		GLOB.cameranet.bareMajorChunkChange(src)
+		SScameras.bare_major_chunk_change(src)
 
 	// We will only run this logic if the tile is not on the prime z layer, since we use area overlays to cover that
 	if(SSmapping.z_level_to_plane_offset[z])
@@ -261,7 +258,6 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 		return
 
 	var/datum/gas_mixture/total = new//Holders to assimilate air from nearby turfs
-	var/list/total_gases = total.gases
 	//Stolen blatently from self_breakdown
 	var/list/turf_list = atmos_adjacent_turfs + src
 	var/turflen = turf_list.len
@@ -277,14 +273,13 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 		energy += mix.temperature * capacity
 		heat_cap += capacity
 
-		var/list/giver_gases = mix.gases
-		for(var/giver_id in giver_gases)
-			ASSERT_GAS_IN_LIST(giver_id, total_gases)
-			total_gases[giver_id][MOLES] += giver_gases[giver_id][MOLES]
+		for(var/giver_id, amount in mix.moles)
+			total.adjust_gas(giver_id, amount)
 
 	total.temperature = energy / heat_cap
-	for(var/id in total_gases)
-		total_gases[id][MOLES] /= turflen
+	var/list/cached_total_moles = total.moles
+	for(var/id in cached_total_moles)
+		cached_total_moles[id] /= turflen
 
 	for(var/turf/open/turf in turf_list)
 		turf.air.copy_from(total)
@@ -293,13 +288,16 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 
 /// Attempts to replace a tile with lattice. Amount is the amount of tiles to scrape away.
 /turf/proc/attempt_lattice_replacement(amount = 2)
-	if(lattice_underneath)
-		var/list/successful_replacement_callbacks = list()
-		SEND_SIGNAL(src, COMSIG_TURF_ATTEMPT_LATTICE_REPLACEMENT, successful_replacement_callbacks)
-		var/turf/new_turf = ScrapeAway(amount, flags = CHANGETURF_INHERIT_AIR)
-		if(!istype(new_turf, /turf/open/floor))
-			var/new_lattice = new /obj/structure/lattice(src)
-			for(var/datum/callback/callback as anything in successful_replacement_callbacks)
-				callback.Invoke(new_lattice)
-	else
+	if (!lattice_underneath)
 		ScrapeAway(amount, flags = CHANGETURF_INHERIT_AIR)
+		return
+
+	var/list/successful_replacement_callbacks = list()
+	SEND_SIGNAL(src, COMSIG_TURF_ATTEMPT_LATTICE_REPLACEMENT, successful_replacement_callbacks)
+	var/turf/new_turf = ScrapeAway(amount, flags = CHANGETURF_INHERIT_AIR)
+	if (istype(new_turf, /turf/open/floor))
+		return
+
+	var/new_lattice = new /obj/structure/lattice(src)
+	for (var/datum/callback/callback as anything in successful_replacement_callbacks)
+		callback.Invoke(new_lattice)

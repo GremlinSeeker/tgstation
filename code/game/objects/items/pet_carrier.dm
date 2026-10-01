@@ -5,9 +5,10 @@
 /obj/item/pet_carrier
 	name = "pet carrier"
 	desc = "A big white-and-blue pet carrier. Good for carrying <s>meat to the chef</s> cute animals around."
-	icon = 'icons/obj/pet_carrier.dmi'
+	icon = 'icons/map_icons/items/_item.dmi'
+	icon_state = "/obj/item/pet_carrier"
+	post_init_icon_state = "pet_carrier_open"
 	base_icon_state = "pet_carrier"
-	icon_state = "pet_carrier_open"
 	inhand_icon_state = "pet_carrier"
 	lefthand_file = 'icons/mob/inhands/items_lefthand.dmi'
 	righthand_file = 'icons/mob/inhands/items_righthand.dmi'
@@ -46,6 +47,7 @@
 /obj/item/pet_carrier/Initialize(mapload)
 	. = ..()
 	register_context()
+	AddElement(/datum/element/cuffable_item)
 
 /obj/item/pet_carrier/Destroy()
 	if(occupants.len)
@@ -109,8 +111,7 @@
 	var/mob/living/target = interacting_with
 	if(target.mob_size > max_occupant_weight)
 		if(ishuman(target))
-			var/mob/living/carbon/human/H = target
-			if(isfelinid(H))
+			if(HAS_TRAIT(target, TRAIT_CATLIKE_INSTINCT))
 				to_chat(user, span_warning("You'd need a lot of catnip and treats, plus maybe a laser pointer, for that to work."))
 			else
 				to_chat(user, span_warning("Humans, generally, do not fit into pet carriers."))
@@ -139,8 +140,7 @@
 		container_resist_act(user)
 
 /obj/item/pet_carrier/container_resist_act(mob/living/user)
-	user.changeNext_move(CLICK_CD_BREAKOUT)
-	user.last_special = world.time + CLICK_CD_BREAKOUT
+	user.change_next_special_move(CLICK_CD_BREAKOUT)
 	if(user.mob_size <= MOB_SIZE_SMALL)
 		to_chat(user, span_notice("You poke a limb through [src]'s bars and start fumbling for the lock switch... (This will take some time.)"))
 		to_chat(loc, span_warning("You see [user] reach through the bars and fumble for the lock switch!"))
@@ -167,8 +167,13 @@
 	if(open)
 		icon_state = "[base_icon_state]_open"
 		return ..()
-	icon_state = "[base_icon_state]_[!occupants.len ? "closed" : "occupied"]_[locked ? "locked" : "unlocked"]"
+	icon_state = "[base_icon_state]_[!occupants.len ? "closed" : "occupied"]"
 	return ..()
+
+/obj/item/pet_carrier/update_overlays()
+	. = ..()
+	if(!open)
+		. += "[base_icon_state]_[locked ? "locked" : "unlocked"]"
 
 /obj/item/pet_carrier/mouse_drop_dragged(atom/over_atom, mob/user, src_location, over_location, params)
 	if(isopenturf(over_atom) && open && occupants.len)
@@ -224,8 +229,10 @@
 /obj/item/pet_carrier/biopod
 	name = "biopod"
 	desc = "Alien device used for undescribable purpose. Or carrying pets."
-	base_icon_state = "biopod"
+	icon = 'icons/obj/pet_carrier.dmi'
 	icon_state = "biopod_open"
+	post_init_icon_state = null
+	base_icon_state = "biopod"
 	inhand_icon_state = "biopod"
 	greyscale_config = null
 	greyscale_config_inhand_left = null
@@ -235,9 +242,11 @@
 /obj/item/pet_carrier/small
 	name = "small pet carrier"
 	desc = "A small pet carrier for miniature sized animals."
+	icon = 'icons/obj/pet_carrier.dmi'
+	icon_state = "small_carrier_open"
+	post_init_icon_state = null
 	w_class = WEIGHT_CLASS_NORMAL
 	base_icon_state = "small_carrier"
-	icon_state = "small_carrier_open"
 	inhand_icon_state = "syringe_kit"
 	lefthand_file = 'icons/mob/inhands/equipment/medical_lefthand.dmi'
 	righthand_file = 'icons/mob/inhands/equipment/medical_righthand.dmi'
@@ -252,8 +261,8 @@
 /obj/item/pet_carrier/small/mouse
 	name = "small mouse carrier"
 	desc = "A small pet carrier for miniature sized animals. This looks prepared for a mouse."
+	icon_state = "small_carrier_occupied"
 	open = FALSE
-	icon_state = "small_carrier_occupied_unlocked"
 
 /obj/item/pet_carrier/small/mouse/Initialize(mapload)
 	var/mob/living/basic/mouse/hero_mouse = new /mob/living/basic/mouse(src)

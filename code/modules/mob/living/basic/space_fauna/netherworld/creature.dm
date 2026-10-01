@@ -28,6 +28,7 @@
 	lighting_cutoff_blue = 15
 
 	ai_controller = /datum/ai_controller/basic_controller/simple/simple_hostile_obstacles
+	physiology = list(STAMINA = 0)
 	var/health_scaling = TRUE
 
 /mob/living/basic/creature/Initialize(mapload)
@@ -46,7 +47,7 @@
 /mob/living/basic/creature/proc/can_be_seen(turf/location)
 	// Check for darkness
 	if(location?.lighting_object)
-		if(location.get_lumcount() < 0.1) // No one can see us in the darkness, right?
+		if(location.check_lumcount_below(0.1)) // No one can see us in the darkness, right?
 			return null
 
 	// We aren't in darkness, loop for viewers.

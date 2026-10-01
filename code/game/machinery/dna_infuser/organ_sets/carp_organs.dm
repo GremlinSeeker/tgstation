@@ -6,12 +6,12 @@
 ///bonus of the carp: you can swim through space!
 /datum/status_effect/organ_set_bonus/carp
 	id = "organ_set_bonus_carp"
-	organs_needed = 4
+	organs_needed = 5
 	bonus_activate_text = span_notice("Carp DNA is deeply infused with you! You've learned how to propel yourself through space!")
 	bonus_deactivate_text = span_notice("Your DNA is once again mostly yours, and so fades your ability to space-swim...")
 	bonus_traits = list(TRAIT_SPACEWALK)
 	bonus_biotype = MOB_AQUATIC
-	limb_overlay = /datum/bodypart_overlay/texture/carpskin
+	limb_texture = /datum/bodypart_texture/carpskin
 	color_overlay_priority = LIMB_COLOR_CARP_INFUSION
 
 ///Carp lungs! You can breathe in space! Oh... you can't breathe on the station, you need low oxygen environments.
@@ -23,76 +23,77 @@
 	safe_oxygen_min = 0
 	safe_oxygen_max = 15
 
-	icon = 'icons/obj/medical/organs/infuser_organs.dmi'
-	icon_state = "lungs"
+	icon = 'icons/map_icons/items/_item.dmi'
+	icon_state = "/obj/item/organ/lungs/carp"
+	post_init_icon_state = "lungs"
 	greyscale_config = /datum/greyscale_config/mutant_organ
 	greyscale_colors = CARP_COLORS
+	organ_traits = list(TRAIT_NODROWN, TRAIT_NO_BREATHLESS_DAMAGE)
 
 /obj/item/organ/lungs/carp/Initialize(mapload)
 	. = ..()
 	AddElement(/datum/element/noticable_organ, "%PRONOUN_Their neck has odd gills.", BODY_ZONE_HEAD)
 	AddElement(/datum/element/organ_set_bonus, /datum/status_effect/organ_set_bonus/carp)
-	ADD_TRAIT(src, TRAIT_SPACEBREATHING, REF(src))
 
 ///occasionally sheds carp teeth, stronger melee (bite) attacks, but you can't cover your mouth anymore.
-/obj/item/organ/tongue/carp
+/obj/item/organ/fangs/carp
 	name = "mutated carp-jaws"
 	desc = "Carp DNA infused into what was once some normal teeth."
+	icon_state = "fangs_lizard"
+	organ_traits = list(TRAIT_FERAL_BITER)
+	bite_low = 10
+	bite_high = 15
+	bite_effectiveness = 15
+	bite_attack_effect = ATTACK_EFFECT_BITE
+	bite_sharpness = SHARP_POINTY
 
-	say_mod = "gnashes"
-
-	icon = 'icons/obj/medical/organs/infuser_organs.dmi'
-	icon_state = "tongue"
-	greyscale_config = /datum/greyscale_config/mutant_organ
-	greyscale_colors = CARP_COLORS
-
-/obj/item/organ/tongue/carp/Initialize(mapload)
+/obj/item/organ/fangs/carp/Initialize(mapload)
 	. = ..()
 	AddElement(/datum/element/noticable_organ, "%PRONOUN_Their teeth are big and sharp.", BODY_ZONE_PRECISE_MOUTH)
 	AddElement(/datum/element/organ_set_bonus, /datum/status_effect/organ_set_bonus/carp)
 
-/obj/item/organ/tongue/carp/on_mob_insert(mob/living/carbon/tongue_owner, special, movement_flags)
+/obj/item/organ/fangs/carp/on_mob_insert(mob/living/carbon/fangs_owner, special, movement_flags)
 	. = ..()
-	if(!ishuman(tongue_owner))
+	if(!ishuman(fangs_owner))
 		return
-	var/mob/living/carbon/human/human_receiver = tongue_owner
+	var/mob/living/carbon/human/human_receiver = fangs_owner
 	if(!human_receiver.can_mutate())
 		return
 	var/datum/species/rec_species = human_receiver.dna.species
-	rec_species.update_no_equip_flags(tongue_owner, rec_species.no_equip_flags | ITEM_SLOT_MASK)
+	rec_species.update_no_equip_flags(fangs_owner, rec_species.no_equip_flags | ITEM_SLOT_MASK)
 
-/obj/item/organ/tongue/carp/on_bodypart_insert(obj/item/bodypart/head)
+/obj/item/organ/fangs/carp/on_mob_remove(mob/living/carbon/fangs_owner)
 	. = ..()
-	head.unarmed_damage_low = 10
-	head.unarmed_damage_high = 15
-	head.unarmed_effectiveness = 15
-	head.unarmed_attack_effect = ATTACK_EFFECT_BITE
-
-/obj/item/organ/tongue/carp/on_mob_remove(mob/living/carbon/tongue_owner)
-	. = ..()
-	if(!ishuman(tongue_owner))
+	if(!ishuman(fangs_owner))
 		return
-	var/mob/living/carbon/human/human_receiver = tongue_owner
+	var/mob/living/carbon/human/human_receiver = fangs_owner
 	if(!human_receiver.can_mutate())
 		return
 	var/datum/species/rec_species = human_receiver.dna.species
-	rec_species.update_no_equip_flags(tongue_owner, initial(rec_species.no_equip_flags))
+	rec_species.update_no_equip_flags(fangs_owner, initial(rec_species.no_equip_flags))
 
-/obj/item/organ/tongue/carp/on_bodypart_remove(obj/item/bodypart/head)
+/obj/item/organ/fangs/carp/on_life(seconds_per_tick)
 	. = ..()
-	head.unarmed_damage_low = initial(head.unarmed_damage_low)
-	head.unarmed_damage_high = initial(head.unarmed_damage_high)
-	head.unarmed_effectiveness = initial(head.unarmed_effectiveness)
-	head.unarmed_attack_effect = initial(head.unarmed_attack_effect)
-
-/obj/item/organ/tongue/carp/on_life(seconds_per_tick, times_fired)
-	. = ..()
-	if(owner.stat != CONSCIOUS || !prob(0.1))
+	if(IS_UNCONSCIOUS_OR_CRIT(owner) || !prob(0.1))
 		return
 	owner.emote("cough")
 	var/turf/tooth_fairy = get_turf(owner)
 	if(tooth_fairy)
 		new /obj/item/knife/carp(tooth_fairy)
+
+/obj/item/organ/tongue/carp
+	name = "mutated carp-tongue"
+	desc = "Carp DNA infused into what was once a normal tongue."
+	say_mod = "gnashes"
+	icon = 'icons/map_icons/items/_item.dmi'
+	icon_state = "/obj/item/organ/tongue/carp"
+	post_init_icon_state = "tongue"
+	greyscale_config = /datum/greyscale_config/mutant_organ
+	greyscale_colors = CARP_COLORS
+
+/obj/item/organ/tongue/carp/Initialize(mapload)
+	. = ..()
+	AddElement(/datum/element/organ_set_bonus, /datum/status_effect/organ_set_bonus/carp)
 
 /obj/item/organ/tongue/carp/get_possible_languages()
 	. = ..()
@@ -109,11 +110,14 @@
 	name = "mutated carp-brain"
 	desc = "Carp DNA infused into what was once a normal brain."
 
-	icon = 'icons/obj/medical/organs/infuser_organs.dmi'
-	icon_state = "brain"
+	icon = 'icons/map_icons/items/_item.dmi'
+	icon_state = "/obj/item/organ/brain/carp"
+	post_init_icon_state = "brain"
 	greyscale_config = /datum/greyscale_config/mutant_organ
 	greyscale_colors = CARP_COLORS
 	can_smoothen_out = FALSE
+	shade_color = "blue"
+	organ_traits = list(TRAIT_ADVANCEDTOOLUSER, TRAIT_LITERATE, TRAIT_CAN_STRIP, TRAIT_FERAL_BITER)
 
 	///Timer counting down. When finished, the owner gets a bad moodlet.
 	var/cooldown_timer
@@ -136,9 +140,6 @@
 	UnregisterSignal(brain_owner, COMSIG_MOVABLE_Z_CHANGED)
 	deltimer(cooldown_timer)
 
-/obj/item/organ/brain/carp/get_attacking_limb(mob/living/carbon/human/target)
-	return owner.get_bodypart(BODY_ZONE_HEAD)
-
 /obj/item/organ/brain/carp/proc/unsatisfied_nomad()
 	owner.add_mood_event("nomad", /datum/mood_event/unsatisfied_nomad)
 
@@ -152,8 +153,9 @@
 	name = "mutated carp-heart"
 	desc = "Carp DNA infused into what was once a normal heart."
 
-	icon = 'icons/obj/medical/organs/infuser_organs.dmi'
-	icon_state = "heart"
+	icon = 'icons/map_icons/items/_item.dmi'
+	icon_state = "/obj/item/organ/heart/carp"
+	post_init_icon_state = "heart"
 	greyscale_config = /datum/greyscale_config/mutant_organ
 	greyscale_colors = CARP_COLORS
 

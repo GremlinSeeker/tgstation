@@ -20,7 +20,7 @@
 	explosion_power = 12
 	layer = ABOVE_MOB_LAYER
 	moveable = TRUE
-
+	light_mask_icon = "sm_shard-emissive"
 
 /obj/machinery/power/supermatter_crystal/shard/Initialize(mapload)
 	. = ..()
@@ -53,14 +53,6 @@
 	anchored = TRUE
 	moveable = FALSE
 
-/atom/movable/supermatter_warp_effect
-	plane = GRAVITY_PULSE_PLANE
-	appearance_flags = PIXEL_SCALE // no tile bound so you can see it around corners and so
-	icon = 'icons/effects/light_overlays/light_352.dmi'
-	icon_state = "light"
-	pixel_x = -176
-	pixel_y = -176
-
 /// Normal sm but small (sm sword recipe element) (wiz only) and adamantine pedestal for it
 /obj/machinery/power/supermatter_crystal/small
 	name = "strangely small supermatter crystal"
@@ -69,6 +61,8 @@
 	icon_state = "sm_small"
 	moveable = TRUE
 	anchored = FALSE
+	custom_materials = list(/datum/material/adamantine = SHEET_MATERIAL_AMOUNT * 20, /datum/material/iron = SHEET_MATERIAL_AMOUNT)
+	light_mask_icon = "sm_small-emissive"
 
 /obj/machinery/power/supermatter_crystal/small/Initialize(mapload)
 	. = ..()
@@ -84,3 +78,4 @@
 	throw_speed = 1
 	throw_range = 1
 	resistance_flags = INDESTRUCTIBLE | LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF
+	custom_materials = list(/datum/material/adamantine = SHEET_MATERIAL_AMOUNT * 20)

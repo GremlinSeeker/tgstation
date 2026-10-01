@@ -8,16 +8,15 @@
 	)
 	mutanttongue = /obj/item/organ/tongue/monkey
 	mutantbrain = /obj/item/organ/brain/primate
-	skinned_type = /obj/item/stack/sheet/animalhide/monkey
+	skinned_type = /obj/item/stack/sheet/animalhide/carbon/monkey
 	meat = /obj/item/food/meat/slab/monkey
-	knife_butcher_results = list(/obj/item/food/meat/slab/monkey = 5, /obj/item/stack/sheet/animalhide/monkey = 1)
+	knife_butcher_results = list(/obj/item/food/meat/slab/monkey = 5, /obj/item/stack/sheet/animalhide/carbon/monkey = 1)
 	inherent_traits = list(
-		TRAIT_NO_AUGMENTS,
 		TRAIT_NO_BLOOD_OVERLAY,
 		TRAIT_NO_DNA_COPY,
 		TRAIT_NO_UNDERWEAR,
-		TRAIT_VENTCRAWLER_NUDE,
-		TRAIT_WEAK_SOUL,
+		TRAIT_LESSER_HUMANOID,
+		TRAIT_SIMIAN,
 	)
 	no_equip_flags = ITEM_SLOT_OCLOTHING | ITEM_SLOT_GLOVES | ITEM_SLOT_FEET | ITEM_SLOT_SUITSTORE
 	changesource_flags = MIRROR_BADMIN | WABBAJACK | MIRROR_PRIDE | MIRROR_MAGIC | ERT_SPAWN | SLIME_EXTRACT
@@ -42,27 +41,13 @@
 
 /datum/species/monkey/on_species_gain(mob/living/carbon/human/human_who_gained_species, datum/species/old_species, pref_load, regenerate_icons)
 	. = ..()
-	passtable_on(human_who_gained_species, SPECIES_TRAIT)
-	human_who_gained_species.dna.add_mutation(/datum/mutation/human/race, MUT_NORMAL)
-	human_who_gained_species.dna.activate_mutation(/datum/mutation/human/race)
-	human_who_gained_species.AddElement(/datum/element/human_biter)
-	human_who_gained_species.update_mob_height()
+	if (pref_load)
+		ADD_TRAIT(human_who_gained_species, TRAIT_BORN_MONKEY, INNATE_TRAIT) // Not a species trait, you cannot escape your genetic destiny
+	human_who_gained_species.dna.add_mutation(/datum/mutation/race, MUTATION_SOURCE_ACTIVATED)
 
 /datum/species/monkey/on_species_loss(mob/living/carbon/human/C)
 	. = ..()
-	passtable_off(C, SPECIES_TRAIT)
-	C.dna.remove_mutation(/datum/mutation/human/race)
-	C.RemoveElement(/datum/element/human_biter)
-	C.update_mob_height()
-
-/datum/species/monkey/update_species_heights(mob/living/carbon/human/holder)
-	if(HAS_TRAIT(holder, TRAIT_DWARF))
-		return MONKEY_HEIGHT_DWARF
-
-	if(HAS_TRAIT(holder, TRAIT_TOO_TALL))
-		return MONKEY_HEIGHT_TALL
-
-	return MONKEY_HEIGHT_MEDIUM
+	C.dna.remove_mutation(/datum/mutation/race, MUTATION_SOURCE_ACTIVATED)
 
 /datum/species/monkey/check_roundstart_eligible()
 	// STOP ADDING MONKEY SUBTYPES YOU HEATHEN
@@ -70,13 +55,6 @@
 	if(check_holidays(MONKEYDAY) && id == SPECIES_MONKEY)
 		return TRUE
 	return ..()
-
-/datum/species/monkey/get_scream_sound(mob/living/carbon/human/monkey)
-	return get_sfx(SFX_SCREECH)
-
-/datum/species/monkey/get_hiss_sound(mob/living/carbon/human/monkey)
-	return 'sound/mobs/humanoids/human/hiss/human_hiss.ogg'
-	// we're both great apes, or something..
 
 /datum/species/monkey/get_physical_attributes()
 	return "Monkeys are slippery, can crawl into vents, and are more dextrous than humans.. but only when stealing things. \
@@ -112,12 +90,6 @@
 			SPECIES_PERK_DESC = "Monkeys are primitive humans, and can't do most things a human can do. Computers are impossible, \
 				complex machines are right out, and most clothes don't fit your smaller form.",
 		),
-		list(
-			SPECIES_PERK_TYPE = SPECIES_NEGATIVE_PERK,
-			SPECIES_PERK_ICON = "capsules",
-			SPECIES_PERK_NAME = "Mutadone Averse",
-			SPECIES_PERK_DESC = "Monkeys are reverted into normal humans upon being exposed to Mutadone.",
-		),
 	)
 
 	return to_add
@@ -146,6 +118,12 @@
 	/// Will this monkey stumble if they are crossed by a simple mob or a carbon in combat mode? Toggable by monkeys with clients, and is messed automatically set to true by monkey AI.
 	var/tripping = TRUE
 
+/obj/item/organ/brain/primate/get_replaceability(obj/item/organ/new_organ_type, obj/item/organ/expected_organ_type, datum/species/old_species, replace_current = TRUE)
+	///Real monkeys retain their ape brains when humanized (further species change can override it). If old_species is null,
+	if(HAS_TRAIT(owner, TRAIT_BORN_MONKEY) && (!old_species || istype(old_species, /datum/species/monkey)))
+		return FALSE
+	return ..()
+
 /datum/action/item_action/organ_action/toggle_trip
 	name = "Toggle Tripping"
 	button_icon = 'icons/mob/actions/actions_changeling.dmi'
@@ -169,19 +147,27 @@
 /obj/item/organ/brain/primate/on_mob_insert(mob/living/carbon/primate)
 	. = ..()
 	RegisterSignal(primate, COMSIG_LIVING_MOB_BUMPED, PROC_REF(on_mob_bump))
+	primate.AddElement(/datum/element/human_biter)
 
 /obj/item/organ/brain/primate/on_mob_remove(mob/living/carbon/primate)
 	. = ..()
 	UnregisterSignal(primate, COMSIG_LIVING_MOB_BUMPED)
+	primate.RemoveElement(/datum/element/human_biter)
 
 /obj/item/organ/brain/primate/proc/on_mob_bump(mob/source, mob/living/crossing_mob)
 	SIGNAL_HANDLER
 	if(!tripping || !crossing_mob.combat_mode)
 		return
+	if(crossing_mob.mob_size < MOB_SIZE_HUMAN)
+		return
+	if(ishuman(crossing_mob))
+		var/mob/living/carbon/human/crossing_humie = crossing_mob
+		if(crossing_humie.mob_height <= HUMAN_HEIGHT_SHORTEST)
+			return
 	crossing_mob.knockOver(owner)
 
 /obj/item/organ/brain/primate/get_attacking_limb(mob/living/carbon/human/target)
-	if(!HAS_TRAIT(owner, TRAIT_ADVANCEDTOOLUSER))
+	if(!HAS_TRAIT(owner, TRAIT_ADVANCEDTOOLUSER) || HAS_TRAIT(owner, TRAIT_FERAL_BITER))
 		return owner.get_bodypart(BODY_ZONE_HEAD)
 	return ..()
 

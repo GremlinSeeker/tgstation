@@ -98,7 +98,7 @@
 	if(active)
 		to_chat(user, span_userdanger("You have a really bad feeling about [src]!"))
 
-/obj/item/hot_potato/attack(mob/living/target_mob, mob/living/user, params)
+/obj/item/hot_potato/attack(mob/living/target_mob, mob/living/user, list/modifiers, list/attack_modifiers)
 	. = ..()
 	if(.)
 		return .
@@ -110,7 +110,7 @@
 		return FALSE
 	if(!victim.client)
 		to_chat(user, span_boldwarning("[src] refuses to attach to a non-sapient creature!"))
-	if(victim.stat != CONSCIOUS || !victim.usable_legs)
+	if(IS_UNCONSCIOUS_OR_CRIT(victim) || !victim.usable_legs)
 		to_chat(user, span_boldwarning("[src] refuses to attach to someone incapable of using it!"))
 	user.temporarilyRemoveItemFromInventory(src, TRUE)
 	. = FALSE
@@ -155,7 +155,7 @@
 	active = TRUE
 	if(detonate_explosion) //doesn't send a notification unless it's a genuine, exploding hot potato.
 		notify_ghosts(
-			"[user] has primed a Hot Potato!",
+			"[user.real_name] has primed a Hot Potato!",
 			source = src,
 			header = "Hot Hot Hot!",
 		)

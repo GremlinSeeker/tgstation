@@ -3,12 +3,12 @@
 	name = "E.X.P.E.R.I-MENTORially Discovered Devices"
 	description = "Psst, hey. Don't tell the assistants, but we're undercutting them on the value of those 'strange objects' they've been finding. Fish one up and send us a discovered one by using the E.X.P.E.R.I-MENTOR."
 	reward = CARGO_CRATE_VALUE * 8
-	wanted_types = list(/obj/item/relic = TRUE)
+	wanted_types = list(/obj/item/assembly/relic = TRUE)
 
 /datum/bounty/item/science/relic/applies_to(obj/O)
 	if(!..())
 		return FALSE
-	var/obj/item/relic/experiment = O
+	var/obj/item/assembly/relic/experiment = O
 	if(experiment.activated)
 		return TRUE
 	return
@@ -44,7 +44,7 @@
 		return FALSE
 	var/inst_total = 0
 	for(var/pot_mut in mutator.add_mutations)
-		var/datum/mutation/human/mutation = pot_mut
+		var/datum/mutation/mutation = pot_mut
 		if(initial(mutation.quality) != POSITIVE)
 			continue
 		inst_total += mutation.instability

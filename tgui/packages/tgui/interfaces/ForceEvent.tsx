@@ -1,4 +1,4 @@
-import { paginate } from 'common/collections';
+import { chunk } from 'es-toolkit';
 import { createContext, useContext, useState } from 'react';
 import {
   Button,
@@ -8,7 +8,7 @@ import {
   Stack,
   Tabs,
 } from 'tgui-core/components';
-import { BooleanLike } from 'tgui-core/react';
+import type { BooleanLike } from 'tgui-core/react';
 
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
@@ -60,6 +60,7 @@ type Event = {
   description: string;
   type: string;
   category: string;
+  disabled: BooleanLike;
   has_customization: BooleanLike;
 };
 
@@ -117,7 +118,7 @@ function PanelOptions(props) {
         <Input
           autoFocus
           fluid
-          onInput={(e, value) => setSearchQuery(value)}
+          onChange={setSearchQuery}
           placeholder="Search..."
           value={searchQuery}
         />
@@ -168,7 +169,7 @@ function EventSection(props) {
     EVENT_PAGE_ITEMS,
   );
 
-  const sectionTitle = searchQuery ? 'Searching...' : category.name + ' Events';
+  const sectionTitle = searchQuery ? 'Searching...' : `${category.name} Events`;
 
   return (
     <Section scrollable fill title={sectionTitle} buttons={<PanelOptions />}>
@@ -178,26 +179,38 @@ function EventSection(props) {
             <Stack>
               {eventPage.map((event) => (
                 <Stack.Item grow key={event.type}>
-                  <Button
-                    className="Button__rightIcon"
-                    tooltip={
-                      event.description +
-                      (event.has_customization
-                        ? ' Includes admin customization.'
-                        : '')
-                    }
-                    fluid
-                    icon={event.has_customization ? 'gear' : undefined}
-                    iconPosition="right"
-                    onClick={() =>
-                      act('forceevent', {
-                        type: event.type,
-                        announce: announce,
-                      })
-                    }
-                  >
-                    {event.name}
-                  </Button>
+                  <Stack fill>
+                    <Stack.Item>
+                      <Button.Checkbox
+                        fluid
+                        checked={!event.disabled}
+                        onClick={() => act('toggleevent', { type: event.type })}
+                        tooltip="If unchecked, this event cannot randomly trigger."
+                      />
+                    </Stack.Item>
+                    <Stack.Item grow>
+                      <Button
+                        className="Button__rightIcon"
+                        tooltip={
+                          event.description +
+                          (event.has_customization
+                            ? ' Includes admin customization.'
+                            : '')
+                        }
+                        fluid
+                        icon={event.has_customization ? 'gear' : undefined}
+                        iconPosition="right"
+                        onClick={() =>
+                          act('forceevent', {
+                            type: event.type,
+                            announce: announce,
+                          })
+                        }
+                      >
+                        {event.name}
+                      </Button>
+                    </Stack.Item>
+                  </Stack>
                 </Stack.Item>
               ))}
             </Stack>
@@ -215,7 +228,7 @@ function EventTabs(props) {
   const { categoryState } = useForceEventContext();
   const [category, setCategory] = categoryState;
 
-  const layerCats = paginate(categories, CATEGORY_PAGE_ITEMS);
+  const layerCats = chunk(categories, CATEGORY_PAGE_ITEMS);
 
   return (
     <Section mb="-6px">

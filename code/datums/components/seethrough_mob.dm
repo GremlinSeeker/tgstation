@@ -17,7 +17,7 @@
 	///This component's personal uid
 	var/personal_uid
 
-/datum/component/seethrough_mob/Initialize(target_alpha = 100, animation_time = 0.5 SECONDS, clickthrough = TRUE, keep_color = FALSE)
+/datum/component/seethrough_mob/Initialize(target_alpha = 100, animation_time = 0.5 SECONDS, clickthrough = TRUE)
 	. = ..()
 
 	if(!ismob(parent))
@@ -43,6 +43,9 @@
 	action.Grant(parent)
 
 /datum/component/seethrough_mob/Destroy(force)
+	if(trickery_image)
+		var/mob/fool = parent
+		clear_image(trickery_image, fool.client)
 	QDEL_NULL(render_source_atom)
 	return ..()
 
@@ -51,12 +54,15 @@
 	SIGNAL_HANDLER
 
 	var/mob/fool = parent
+	// Finish the previous fade
+	if(trickery_image)
+		clear_image(trickery_image, fool.client)
+		is_active = TRUE
 	var/datum/hud/our_hud = fool.hud_used
 	for(var/atom/movable/screen/plane_master/seethrough as anything in our_hud.get_true_plane_masters(SEETHROUGH_PLANE))
 		seethrough.unhide_plane(fool)
 
-	render_source_atom.pixel_x = -fool.pixel_x
-	render_source_atom.pixel_y = ((fool.get_cached_height() - ICON_SIZE_Y) * 0.5)
+	render_source_atom.name = "seethrough" //So our name is not just "movable" when looking at VVs
 
 	initial_render_target_value = fool.render_target
 	fool.render_target = "*transparent_bigmob[personal_uid]"
@@ -90,10 +96,16 @@
 
 ///Remove the image and the trick atom
 /datum/component/seethrough_mob/proc/clear_image(image/removee, client/remove_from)
+	remove_from?.images -= removee
+	// A previous fade may finish after a new appearance has taken its place.
+	if(removee != trickery_image)
+		return
 	var/atom/movable/atom_parent = parent
 	atom_parent.vis_contents -= render_source_atom
 	atom_parent.render_target = initial_render_target_value
-	remove_from?.images -= removee
+	initial_render_target_value = null
+	trickery_image = null
+	is_active = FALSE
 
 ///Effect is disabled when they log out because client gets deleted
 /datum/component/seethrough_mob/proc/on_client_disconnect()

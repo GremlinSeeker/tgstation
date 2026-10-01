@@ -8,7 +8,7 @@ import {
   Stack,
   Tabs,
 } from 'tgui-core/components';
-import { BooleanLike } from 'tgui-core/react';
+import type { BooleanLike } from 'tgui-core/react';
 
 import { useBackend, useSharedState } from '../backend';
 import { Window } from '../layouts';
@@ -131,7 +131,7 @@ const AllImplantDisplay = (props: { implants: ImplantInfo[] }) => {
         </Tabs>
       </Stack.Item>
       <Stack.Item>
-        {implantTab && implantsByCategory && implantsByCategory[implantTab] ? (
+        {implantTab && implantsByCategory?.[implantTab] ? (
           implantsByCategory[implantTab].map((implant) => (
             <ImplantDisplay key={implant.ref} implant={implant} />
           ))

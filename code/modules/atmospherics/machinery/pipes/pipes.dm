@@ -22,11 +22,19 @@
 	buckle_requires_restraints = TRUE
 	buckle_lying = NO_BUCKLE_LYING
 
-/obj/machinery/atmospherics/pipe/New()
+/obj/machinery/atmospherics/pipe/Initialize(mapload, process, setdir, init_dir)
 	add_atom_colour(pipe_color, FIXED_COLOUR_PRIORITY)
 	if (!volume) // Pipes can have specific volumes or have it determined by their device_type.
 		volume = UNARY_PIPE_VOLUME * device_type
-	. = ..()
+	return ..()
+
+/obj/machinery/atmospherics/pipe/proc/set_volume(new_volume)
+	if(volume == new_volume)
+		return
+	var/datum/gas_mixture/gasmix = parent?.air
+	if(gasmix)
+		gasmix.volume = gasmix.volume + new_volume - volume
+	volume = new_volume
 
 /obj/machinery/atmospherics/pipe/setup_hiding()
 	AddElement(/datum/element/undertile, TRAIT_T_RAY_VISIBLE) //if changing this, change the subtypes RemoveElements too, because thats how bespoke works
@@ -60,11 +68,11 @@
 /obj/machinery/atmospherics/pipe/destroy_network()
 	QDEL_NULL(parent)
 
-/obj/machinery/atmospherics/pipe/get_rebuild_targets()
+/obj/machinery/atmospherics/pipe/get_rebuild_target()
 	if(!QDELETED(parent))
 		return
 	replace_pipenet(parent, new /datum/pipeline)
-	return list(parent)
+	return parent
 
 /obj/machinery/atmospherics/pipe/return_air()
 	if(air_temporary)
@@ -81,13 +89,14 @@
 		return air_temporary.remove(amount)
 	return parent.air.remove(amount)
 
-/obj/machinery/atmospherics/pipe/attackby(obj/item/item, mob/user, params)
-	if(istype(item, /obj/item/pipe_meter))
-		var/obj/item/pipe_meter/meter = item
-		user.dropItemToGround(meter)
-		meter.setAttachLayer(piping_layer)
-	else
+/obj/machinery/atmospherics/pipe/item_interaction(mob/living/user, obj/item/tool, list/modifiers)
+	if(!istype(tool, /obj/item/pipe_meter))
 		return ..()
+
+	var/obj/item/pipe_meter/meter = tool
+	user.dropItemToGround(meter)
+	meter.setAttachLayer(piping_layer)
+	return ITEM_INTERACT_SUCCESS
 
 /obj/machinery/atmospherics/pipe/return_pipenet()
 	return parent

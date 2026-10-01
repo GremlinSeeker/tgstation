@@ -39,7 +39,9 @@
 			qdel(src)
 			return
 		bodypart_overlay = new()
-		bodypart_overlay.layers = layers
+		bodypart_overlay.overlay_flags = NONE
+		bodypart_overlay.set_layers(layers)
+		bodypart_overlay.offset_location = UPPER_BODY
 		if(carbon_parent.bodyshape & BODYSHAPE_SNOUTED) //stupid, but external organ bodytypes are not stored on the limb
 			bodypart_overlay.icon_state = "[icon_state]_lizard"
 		else if(my_head.bodyshape & BODYSHAPE_MONKEY)
@@ -95,7 +97,7 @@
 		return NONE
 
 	qdel(src)
-	return COMPONENT_CLEANED
+	return COMPONENT_CLEANED|COMPONENT_CLEANED_GAIN_XP
 
 /// Ensures normal_overlay overlay in case the mob is not a carbon
 /datum/component/face_decal/proc/update_overlays(atom/parent_atom, list/overlays)
@@ -132,7 +134,7 @@ GLOBAL_LIST_INIT(splattable, zebra_typecacheof(list(
 	src.mood_event_type = mood_event_type
 
 /datum/component/face_decal/splat/get_normal_overlay()
-	return mutable_appearance('icons/mob/effects/face_decal.dmi', "[icon_state]_[GLOB.splattable[type]]")
+	return mutable_appearance('icons/mob/effects/face_decal.dmi', "[icon_state]_[is_type_in_list(parent, GLOB.splattable, zebra = TRUE)]")
 
 /datum/component/face_decal/splat/RegisterWithParent()
 	. = ..()

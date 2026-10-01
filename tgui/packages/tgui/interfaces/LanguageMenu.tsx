@@ -8,7 +8,7 @@ import {
   Table,
   Tooltip,
 } from 'tgui-core/components';
-import { BooleanLike } from 'tgui-core/react';
+import type { BooleanLike } from 'tgui-core/react';
 
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
@@ -16,11 +16,12 @@ import { Window } from '../layouts';
 type Language = {
   name: string;
   desc: string;
-  key: string; // the key used to speak the language
+  key: string | null; // the key used to speak the language
   is_default: BooleanLike; // the user's selected default language
   can_speak: BooleanLike; // mentally, we know how to speak it
   could_speak: BooleanLike; // physically, we are capable of speaking it
   can_understand: BooleanLike; // we can understand it regardless
+  partial_understanding: number; // how much of the language we understand
   icon: string;
   icon_state: string;
 };
@@ -61,6 +62,20 @@ const LangSpeakIcon = (props: LanguagePropsPassRest) => {
 
 const LangUnderstandIcon = (props: LanguageProps) => {
   const { language } = props;
+  if (!language.can_understand && language.partial_understanding > 0) {
+    return (
+      <Tooltip content={`You can only partially understand ${language.name}.`}>
+        <Box
+          inline
+          style={{
+            borderBottom: '2px dotted rgba(255, 255, 255, 0.8)',
+          }}
+        >
+          {language.partial_understanding}%
+        </Box>
+      </Tooltip>
+    );
+  }
   return <Icon name="brain" color={language.can_understand ? 'good' : 'bad'} />;
 };
 
@@ -131,7 +146,7 @@ const LanguageRow = (props: LanguageProps) => {
       <Table.Cell>
         <LangUnderstandIcon language={language} />
       </Table.Cell>
-      <Table.Cell>,{language.key}</Table.Cell>
+      <Table.Cell>{language.key ? `,${language.key}` : 'N/A'}</Table.Cell>
       {!!is_living && (
         <Table.Cell>
           <Button.Checkbox
@@ -189,7 +204,7 @@ const OmnitongueToggle = (props) => {
       selected={omnitongue}
       onClick={() => act('toggle_omnitongue')}
     >
-      {'Omnitongue ' + (omnitongue ? 'Enabled' : 'Disabled')}
+      {`Omnitongue ${omnitongue ? 'Enabled' : 'Disabled'}`}
     </Button>
   );
 };
@@ -202,7 +217,11 @@ export const LanguageMenu = (props) => {
   // also, push all languages we can speak to the top, then all languagse we can only understand, then alphabetize
   const shown_languages = languages
     .filter(
-      (language) => admin_mode || language.can_speak || language.can_understand,
+      (language) =>
+        admin_mode ||
+        language.can_speak ||
+        language.can_understand ||
+        language.partial_understanding > 0,
     )
     .sort(
       (a, b) =>

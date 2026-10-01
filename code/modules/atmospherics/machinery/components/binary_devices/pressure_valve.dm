@@ -1,12 +1,14 @@
 /obj/machinery/atmospherics/components/binary/pressure_valve
 	icon_state = "pvalve_map-3"
-	name = "pressure valve"
+	name = "pressure gate"
 	desc = "An activable one way valve that let gas pass through if the pressure on the input side is higher than the set pressure."
 	can_unwrench = TRUE
 	shift_underlay_only = FALSE
 	construction_type = /obj/item/pipe/directional
 	pipe_state = "pvalve"
 	use_power = NO_POWER_USE
+	light_mask_on = TRUE
+	light_mask_off = TRUE
 	///Amount of pressure needed before the valve for it to open
 	var/target_pressure = ONE_ATMOSPHERE
 	///Check if the gas is moving from one pipenet to the other
@@ -24,10 +26,9 @@
 
 /obj/machinery/atmospherics/components/binary/pressure_valve/click_ctrl(mob/user)
 	if(is_operational)
-		on = !on
+		set_on(!on)
 		balloon_alert(user, "turned [on ? "on" : "off"]")
 		investigate_log("was turned [on ? "on" : "off"] by [key_name(user)]", INVESTIGATE_ATMOS)
-		update_appearance()
 		return CLICK_ACTION_SUCCESS
 	return CLICK_ACTION_BLOCKING
 
@@ -38,16 +39,22 @@
 	target_pressure = MAX_OUTPUT_PRESSURE
 	investigate_log("was set to [target_pressure] kPa by [key_name(user)]", INVESTIGATE_ATMOS)
 	balloon_alert(user, "target pressure set to [target_pressure] kPa")
-	update_appearance()
+	update_appearance(UPDATE_ICON)
 	return CLICK_ACTION_SUCCESS
 
 /obj/machinery/atmospherics/components/binary/pressure_valve/update_icon_nopipes()
+	var/new_icon_state
 	if(on && is_operational && is_gas_flowing)
-		icon_state = "pvalve_flow-[set_overlay_offset(piping_layer)]"
+		new_icon_state = "pvalve_flow-[set_overlay_offset(piping_layer)]"
 	else if(on && is_operational && !is_gas_flowing)
-		icon_state = "pvalve_on-[set_overlay_offset(piping_layer)]"
+		new_icon_state = "pvalve_on-[set_overlay_offset(piping_layer)]"
 	else
-		icon_state = "pvalve_off-[set_overlay_offset(piping_layer)]"
+		new_icon_state = "pvalve_off-[set_overlay_offset(piping_layer)]"
+
+	var/old_icon_state = icon_state
+	icon_state = new_icon_state
+	if(new_icon_state != old_icon_state)
+		update_appearance(UPDATE_OVERLAYS)
 
 /obj/machinery/atmospherics/components/binary/pressure_valve/process_atmos()
 
@@ -104,7 +111,7 @@
 			if(.)
 				target_pressure = clamp(pressure, 0, ONE_ATMOSPHERE*100)
 				investigate_log("was set to [target_pressure] kPa by [key_name(usr)]", INVESTIGATE_ATMOS)
-	update_appearance()
+	update_appearance(UPDATE_ICON)
 
 /obj/machinery/atmospherics/components/binary/pressure_valve/can_unwrench(mob/user)
 	. = ..()

@@ -1,5 +1,6 @@
 /obj/projectile/bullet/incendiary
 	damage = 20
+	icon_state = "infernoshot"
 	/// How many firestacks to apply to the target
 	var/fire_stacks = 4
 	/// If TRUE, leaves a trail of hotspots as it flies, very very chaotic
@@ -37,7 +38,7 @@
 	armor_flag = BOMB
 	speed = 0.8
 	wound_bonus = 30
-	bare_wound_bonus = 30
+	exposed_wound_bonus = 30
 	wound_falloff_tile = -4
 	fire_stacks = 3
 
@@ -84,7 +85,7 @@
 			LAZYADD(launched_items, iter_item)
 		else if(isliving(iter))
 			var/mob/living/incineratee = iter
-			incineratee.take_bodypart_damage(0, damage, check_armor = TRUE, wound_bonus=wound_bonus, bare_wound_bonus=bare_wound_bonus)
+			incineratee.take_bodypart_damage(0, damage, check_armor = TRUE, wound_bonus=wound_bonus, exposed_wound_bonus=exposed_wound_bonus)
 			incineratee.adjust_fire_stacks(fire_stacks)
 
 #undef BACKBLAST_MAX_ITEM_KNOCKBACK

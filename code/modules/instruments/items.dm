@@ -7,6 +7,7 @@
 	icon = 'icons/obj/art/musician.dmi'
 	lefthand_file = 'icons/mob/inhands/equipment/instruments_lefthand.dmi'
 	righthand_file = 'icons/mob/inhands/equipment/instruments_righthand.dmi'
+	abstract_type = /obj/item/instrument
 	/// Our song datum.
 	var/datum/song/handheld/song
 	/// Our allowed list of instrument ids. This is nulled on initialize.
@@ -23,19 +24,24 @@
 	QDEL_NULL(song)
 	return ..()
 
-/obj/item/instrument/proc/should_stop_playing(atom/music_player)
+/obj/item/instrument/proc/can_play(atom/music_player)
 	if(!ismob(music_player))
-		return STOP_PLAYING
+		return FALSE
 	var/mob/user = music_player
-	if(user.incapacitated || !((loc == user) || (isturf(loc) && Adjacent(user)))) // sorry, no more TK playing.
-		return STOP_PLAYING
+	if(user.incapacitated)
+		return FALSE
+	if(user.get_item_by_slot(slot_flags) == src) //can't play while wearing the instrument
+		return FALSE
+	if(!Adjacent(user))
+		return FALSE
+	return TRUE
 
 /obj/item/instrument/suicide_act(mob/living/user)
 	user.visible_message(span_suicide("[user] begins to play 'Gloomy Sunday'! It looks like [user.p_theyre()] trying to commit suicide!"))
 	return BRUTELOSS
 
 /obj/item/instrument/ui_interact(mob/user, datum/tgui/ui)
-	song.ui_interact(user)
+	return song.ui_interact(user)
 
 /obj/item/instrument/violin
 	name = "space violin"
@@ -44,6 +50,7 @@
 	inhand_icon_state = "violin"
 	hitsound = SFX_SWING_HIT
 	allowed_instrument_ids = "violin"
+	custom_materials = list(/datum/material/wood = SHEET_MATERIAL_AMOUNT * 4, /datum/material/iron = SHEET_MATERIAL_AMOUNT)
 
 /obj/item/instrument/violin/golden
 	name = "golden violin"
@@ -51,6 +58,7 @@
 	icon_state = "golden_violin"
 	inhand_icon_state = "golden_violin"
 	resistance_flags = LAVA_PROOF | FIRE_PROOF | ACID_PROOF
+	custom_materials = list(/datum/material/gold = SHEET_MATERIAL_AMOUNT * 4, /datum/material/iron = SHEET_MATERIAL_AMOUNT)
 
 /obj/item/instrument/banjo
 	name = "banjo"
@@ -77,6 +85,8 @@
 	desc = "Makes all your shredding needs possible."
 	icon_state = "eguitar"
 	inhand_icon_state = "eguitar"
+	worn_icon = 'icons/mob/clothing/back.dmi'
+	slot_flags = ITEM_SLOT_BACK
 	force = 12
 	attack_verb_continuous = list("plays metal on", "shreds", "crashes", "smashes")
 	attack_verb_simple = list("play metal on", "shred", "crash", "smash")
@@ -118,7 +128,7 @@
 	. = ..()
 	AddElement(/datum/element/spooky, too_spooky = !single_use, single_use = single_use)
 
-/obj/item/instrument/trumpet/spectral/attack(mob/living/target_mob, mob/living/user, params)
+/obj/item/instrument/trumpet/spectral/attack(mob/living/target_mob, mob/living/user, list/modifiers, list/attack_modifiers)
 	playsound(src, 'sound/runtime/instruments/trombone/En4.mid', 1000, 1, -1)
 	return ..()
 
@@ -146,7 +156,7 @@
 	. = ..()
 	AddElement(/datum/element/spooky, too_spooky = !single_use, single_use = single_use)
 
-/obj/item/instrument/saxophone/spectral/attack(mob/living/target_mob, mob/living/user, params)
+/obj/item/instrument/saxophone/spectral/attack(mob/living/target_mob, mob/living/user, list/modifiers, list/attack_modifiers)
 	playsound(src, 'sound/runtime/instruments/trombone/En4.mid', 1000, 1, -1)
 	return ..()
 
@@ -177,7 +187,7 @@
 /obj/item/instrument/trombone/spectral/one_doot
 	single_use = TRUE
 
-/obj/item/instrument/trombone/spectral/attack(mob/living/target_mob, mob/living/user, params)
+/obj/item/instrument/trombone/spectral/attack(mob/living/target_mob, mob/living/user, list/modifiers, list/attack_modifiers)
 	playsound(src, 'sound/runtime/instruments/trombone/Cn4.mid', 1000, 1, -1)
 	return ..()
 

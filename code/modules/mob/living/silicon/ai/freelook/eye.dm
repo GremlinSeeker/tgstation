@@ -127,12 +127,7 @@
 	if(same_z_layer)
 		return
 	update_ai_detect_hud()
-
-///Called when the AI shiftclicks on something to examinate it.
-/mob/eye/camera/ai/proc/examinate_check(mob/user, atom/source)
-	SIGNAL_HANDLER
-	if(user.client.eye == src)
-		return COMPONENT_ALLOW_EXAMINATE
+	ai?.on_looking_z_level_change(old_turf, new_turf)
 
 /*----------------------------------------------------*/
 
@@ -205,7 +200,6 @@
 	eyeobj.ai = src
 	eyeobj.name = "[name] (AI Eye)"
 	eyeobj.setLoc(loc, TRUE)
-	eyeobj.RegisterSignal(src, COMSIG_CLICK_SHIFT, TYPE_PROC_REF(/mob/eye/camera/ai, examinate_check))
 	set_eyeobj_visible(TRUE)
 
 /mob/living/silicon/ai/proc/set_eyeobj_visible(state = TRUE)
@@ -217,19 +211,17 @@
 	else
 		eyeobj.RemoveInvisibility(type)
 
-/mob/living/silicon/ai/verb/toggle_acceleration()
-	set category = "AI Commands"
-	set name = "Toggle Camera Acceleration"
+GAME_VERB(/mob/living/silicon/ai, toggle_acceleration, "Toggle Camera Acceleration", "AI Commands")
 
 	if(incapacitated)
 		return
 	acceleration = !acceleration
 	to_chat(usr, "Camera acceleration has been toggled [acceleration ? "on" : "off"].")
 
-/mob/eye/camera/ai/Hear(message, atom/movable/speaker, datum/language/message_language, raw_message, radio_freq, list/spans, list/message_mods = list(), message_range)
+/mob/eye/camera/ai/Hear(atom/movable/speaker, datum/language/message_language, raw_message, radio_freq, radio_freq_name, radio_freq_color, list/spans, list/message_mods = list(), message_range)
 	. = ..()
-	if(relay_speech && speaker && ai && !radio_freq && speaker != ai && GLOB.cameranet.checkCameraVis(speaker))
-		ai.relay_speech(message, speaker, message_language, raw_message, radio_freq, spans, message_mods)
+	if(relay_speech && speaker && ai && !radio_freq && speaker != ai && SScameras.is_visible_by_cameras(speaker))
+		ai.relay_speech(speaker, message_language, raw_message, radio_freq, spans, message_mods)
 
 /obj/effect/overlay/ai_detect_hud
 	name = ""

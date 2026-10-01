@@ -20,6 +20,12 @@
 
 	COOLDOWN_START(src, party_cooldown, rand(PARTY_COOLDOWN_LENGTH_MIN, PARTY_COOLDOWN_LENGTH_MAX))
 
+	var/list/landing_turfs = list()
+	for(var/turf/open/floor/bar_turf in get_area_turfs(/area/station/service/bar, subtypes = TRUE))
+		landing_turfs += bar_turf
+	if(!length(landing_turfs))
+		return
+
 	var/pizza_type_to_spawn = pick(list(
 		/obj/item/pizzabox/margherita,
 		/obj/item/pizzabox/mushroom,
@@ -28,9 +34,8 @@
 		/obj/item/pizzabox/pineapple
 	))
 
-	var/area/bar_area = pick(GLOB.bar_areas)
 	podspawn(list(
-		"target" = pick(bar_area.contents),
+		"target" = pick(landing_turfs),
 		"path" = /obj/structure/closet/supplypod/centcompod,
 		"spawn" = list(
 			pizza_type_to_spawn,
@@ -136,7 +141,7 @@
 	weight = 5
 	cost = STATION_TRAIT_COST_LOW
 	show_in_report = TRUE
-	report_message = "Our workers accidentally forgot more of their personal belongings in the maintenace areas."
+	report_message = "Our workers accidentally forgot more of their personal belongings in the maintenance areas."
 	blacklist = list(/datum/station_trait/empty_maint)
 	trait_to_give = STATION_TRAIT_FILLED_MAINT
 
@@ -150,10 +155,7 @@
 	show_in_report = TRUE
 	report_message = "Due to proximity to our supply station, the cargo shuttle will have a quicker flight time to your cargo department."
 	blacklist = list(/datum/station_trait/slow_shuttle)
-
-/datum/station_trait/quick_shuttle/on_round_start()
-	. = ..()
-	SSshuttle.supply.callTime *= 0.5
+	trait_to_give = STATION_TRAIT_QUICK_SHUTTLE
 
 /datum/station_trait/deathrattle_department
 	name = "deathrattled department"
@@ -273,7 +275,7 @@
 		/datum/job/coroner = /obj/item/organ/tongue/bone, //hes got a bone to pick with you
 		/datum/job/curator = /obj/item/organ/cyberimp/brain/connector,
 		/datum/job/detective = /obj/item/organ/lungs/cybernetic/tier3,
-		/datum/job/doctor = /obj/item/organ/cyberimp/arm/surgery,
+		/datum/job/doctor = /obj/item/organ/cyberimp/arm/toolkit/surgery,
 		/datum/job/geneticist = /obj/item/organ/fly, //we don't care about implants, we have cancer.
 		/datum/job/head_of_personnel = /obj/item/organ/eyes/robotic,
 		/datum/job/head_of_security = /obj/item/organ/eyes/robotic/thermals,
@@ -289,9 +291,9 @@
 		/datum/job/research_director = /obj/item/organ/cyberimp/bci,
 		/datum/job/roboticist = /obj/item/organ/cyberimp/eyes/hud/diagnostic,
 		/datum/job/scientist = /obj/item/organ/ears/cybernetic,
-		/datum/job/security_officer = /obj/item/organ/cyberimp/arm/flash,
+		/datum/job/security_officer = /obj/item/organ/cyberimp/arm/toolkit/flash,
 		/datum/job/shaft_miner = /obj/item/organ/monster_core/rush_gland,
-		/datum/job/station_engineer = /obj/item/organ/cyberimp/arm/toolset,
+		/datum/job/station_engineer = /obj/item/organ/cyberimp/arm/toolkit/toolset,
 		/datum/job/warden = /obj/item/organ/cyberimp/eyes/hud/security,
 	)
 

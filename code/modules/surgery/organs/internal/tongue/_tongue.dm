@@ -8,6 +8,7 @@
 	attack_verb_continuous = list("licks", "slobbers", "slaps", "frenches", "tongues")
 	attack_verb_simple = list("lick", "slobber", "slap", "french", "tongue")
 	voice_filter = ""
+	visual = FALSE
 	/**
 	 * A cached list of paths of all the languages this tongue is capable of speaking
 	 *
@@ -30,6 +31,8 @@
 	///for temporary overrides of the above variable.
 	var/temp_say_mod = ""
 
+	/// Whether the owner of this tongue can speak clearly. Being set to FALSE means they mumble and slur things
+	var/speakable_with = TRUE
 	/// Whether the owner of this tongue can taste anything. Being set to FALSE will mean no taste feedback will be provided.
 	var/sense_of_taste = TRUE
 	/// Determines how "sensitive" this tongue is to tasting things, lower is more sensitive.
@@ -43,6 +46,8 @@
 	var/toxic_foodtypes = TOXIC //human tastes are default
 	/// Whether this tongue modifies speech via signal
 	var/modifies_speech = FALSE
+	/// List of emote keys and sounds for overriding sounds from emotes
+	VAR_PROTECTED/emote_sounds
 
 /obj/item/organ/tongue/Initialize(mapload)
 	. = ..()
@@ -51,6 +56,10 @@
 	// - then we cache it via string list
 	// this results in tongues with identical possible languages sharing a cached list instance
 	languages_possible = string_list(get_possible_languages())
+	if(speakable_with)
+		add_organ_trait(TRAIT_SPEAKS_CLEARLY)
+	if(!sense_of_taste)
+		add_organ_trait(TRAIT_AGEUSIA)
 
 /obj/item/organ/tongue/examine(mob/user)
 	. = ..()
@@ -74,7 +83,7 @@
 /obj/item/organ/tongue/proc/get_possible_languages()
 	RETURN_TYPE(/list)
 	// This is the default list of languages most humans should be capable of speaking
-	return list(
+	. = list(
 		/datum/language/common,
 		/datum/language/uncommon,
 		/datum/language/spinwarder,
@@ -91,6 +100,8 @@
 		/datum/language/terrum,
 		/datum/language/nekomimetic,
 	)
+	if(languages_native)
+		. |= languages_native
 
 /obj/item/organ/tongue/proc/handle_speech(datum/source, list/speech_args)
 	SIGNAL_HANDLER
@@ -127,7 +138,8 @@
 
 /obj/item/organ/tongue/on_mob_insert(mob/living/carbon/receiver, special, movement_flags)
 	. = ..()
-
+	for(var/key in emote_sounds)
+		RegisterSignal(receiver, COMSIG_MOB_EMOTE_SOUND(key), PROC_REF(get_tongue_emote_sound))
 	if(modifies_speech)
 		RegisterSignal(receiver, COMSIG_MOB_SAY, PROC_REF(handle_speech))
 	receiver.voice_filter = voice_filter
@@ -137,40 +149,27 @@
 	* ageusia from having a non-tasting tongue.
 	*/
 	REMOVE_TRAIT(receiver, TRAIT_AGEUSIA, NO_TONGUE_TRAIT)
-	apply_tongue_effects()
 
 /obj/item/organ/tongue/on_mob_remove(mob/living/carbon/organ_owner, special, movement_flags)
 	. = ..()
 
 	temp_say_mod = ""
+	for(var/key in emote_sounds)
+		UnregisterSignal(organ_owner, COMSIG_MOB_EMOTE_SOUND(key))
 	UnregisterSignal(organ_owner, COMSIG_MOB_SAY)
-	REMOVE_TRAIT(organ_owner, TRAIT_SPEAKS_CLEARLY, SPEAKING_FROM_TONGUE)
-	REMOVE_TRAIT(organ_owner, TRAIT_AGEUSIA, ORGAN_TRAIT)
 	// Carbons by default start with NO_TONGUE_TRAIT caused TRAIT_AGEUSIA
 	ADD_TRAIT(organ_owner, TRAIT_AGEUSIA, NO_TONGUE_TRAIT)
 	organ_owner.voice_filter = initial(organ_owner.voice_filter)
 
-/obj/item/organ/tongue/apply_organ_damage(damage_amount, maximum = maxHealth, required_organ_flag)
-	. = ..()
-	if(!owner)
-		return FALSE
-	apply_tongue_effects()
+/obj/item/organ/tongue/on_begin_failure()
+	remove_organ_trait(TRAIT_SPEAKS_CLEARLY)
+	add_organ_trait(TRAIT_AGEUSIA)
 
-/// Applies effects to our owner based on how damaged our tongue is
-/obj/item/organ/tongue/proc/apply_tongue_effects()
+/obj/item/organ/tongue/on_failure_recovery()
+	if(speakable_with)
+		add_organ_trait(TRAIT_SPEAKS_CLEARLY)
 	if(sense_of_taste)
-		//tongues can't taste food when they are failing
-		if(organ_flags & ORGAN_FAILING)
-			ADD_TRAIT(owner, TRAIT_AGEUSIA, ORGAN_TRAIT)
-		else
-			REMOVE_TRAIT(owner, TRAIT_AGEUSIA, ORGAN_TRAIT)
-	else
-		//tongues can't taste food when they lack a sense of taste
-		ADD_TRAIT(owner, TRAIT_AGEUSIA, ORGAN_TRAIT)
-	if(organ_flags & ORGAN_FAILING)
-		REMOVE_TRAIT(owner, TRAIT_SPEAKS_CLEARLY, SPEAKING_FROM_TONGUE)
-	else
-		ADD_TRAIT(owner, TRAIT_SPEAKS_CLEARLY, SPEAKING_FROM_TONGUE)
+		remove_organ_trait(TRAIT_AGEUSIA)
 
 /obj/item/organ/tongue/could_speak_language(datum/language/language_path)
 	return (language_path in languages_possible)
@@ -181,6 +180,11 @@
 /obj/item/organ/tongue/feel_for_damage(self_aware)
 	// No effect
 	return ""
+
+/obj/item/organ/tongue/proc/get_tongue_emote_sound(datum/source, key, list/sounds)
+	SIGNAL_HANDLER
+	var/sound_override = get_emote_sound_from_list(emote_sounds[key], owner)
+	sounds[sound_override] = EMOTE_SOUND_TONGUE
 
 /obj/item/organ/tongue/lizard
 	name = "forked tongue"
@@ -193,6 +197,16 @@
 	liked_foodtypes = GORE | MEAT | SEAFOOD | NUTS | BUGS
 	disliked_foodtypes = GRAIN | DAIRY | CLOTH | GROSS
 	voice_filter = @{"[0:a] asplit [out0][out2]; [out0] asetrate=%SAMPLE_RATE%*0.9,aresample=%SAMPLE_RATE%,atempo=1/0.9,aformat=channel_layouts=mono,volume=0.2 [p0]; [out2] asetrate=%SAMPLE_RATE%*1.1,aresample=%SAMPLE_RATE%,atempo=1/1.1,aformat=channel_layouts=mono,volume=0.2[p2]; [p0][0][p2] amix=inputs=3"}
+	emote_sounds = list(
+		/datum/emote/living/scream::key = list(
+			'sound/mobs/humanoids/lizard/lizard_scream_1.ogg',
+			'sound/mobs/humanoids/lizard/lizard_scream_2.ogg',
+			'sound/mobs/humanoids/lizard/lizard_scream_3.ogg',
+		),
+		/datum/emote/living/carbon/hiss::key = 'sound/mobs/humanoids/lizard/lizard_hiss.ogg',
+		/datum/emote/living/laugh::key = 'sound/mobs/humanoids/lizard/lizard_laugh1.ogg',
+		/datum/emote/living/deathgasp::key = 'sound/mobs/humanoids/lizard/deathsound.ogg',
+	)
 	var/static/list/speech_replacements = list(
 		new /regex("s+", "g") = "sss",
 		new /regex("S+", "g") = "SSS",
@@ -252,7 +266,7 @@
 		if(feedback)
 			owner.balloon_alert(owner, "you can't seem to statue-ize!")
 		return FALSE // permanently bricked
-	if(owner.stat != CONSCIOUS)
+	if(IS_UNCONSCIOUS_OR_CRIT(owner))
 		if(feedback)
 			owner.balloon_alert(owner, "you're too weak!")
 		return FALSE
@@ -355,11 +369,21 @@
 	bomb = 50
 	fire = 100
 
+/obj/item/organ/tongue/ghost
+	name = "ghost tongue"
+	desc = "You feel spooked even thinking about someone talking through this."
+	icon_state = "tongue-ghost"
+	movement_type = PHASING
+	say_mod = "boos"
+	sense_of_taste = FALSE
+	organ_flags = parent_type::organ_flags | ORGAN_GHOST
+
 /obj/item/organ/tongue/abductor
 	name = "superlingual matrix"
 	desc = "A mysterious structure that allows for instant communication between users. Pretty impressive until you need to eat something."
 	icon_state = "tongueayylmao"
 	say_mod = "gibbers"
+	organ_traits = list(TRAIT_HIDE_THINKING_INDICATOR)
 	sense_of_taste = FALSE
 	modifies_speech = TRUE
 	var/mothership
@@ -417,16 +441,30 @@
 	taste_sensitivity = 32
 	liked_foodtypes = GROSS | MEAT | RAW | GORE
 	disliked_foodtypes = NONE
-
-// List of english words that translate to zombie phrases
-GLOBAL_LIST_INIT(english_to_zombie, list())
+	emote_sounds = list(
+		/datum/emote/living/scream::key = list(
+			'sound/effects/hallucinations/veryfar_noise.ogg',
+			'sound/effects/hallucinations/wail.ogg',
+			'sound/effects/hallucinations/far_noise.ogg',
+		),
+	)
+	// List of english words that translate to zombie phrases
+	var/static/list/english_to_zombie = list()
+	/// Spooky growls we sometimes play while alive
+	var/static/list/spooks = list(
+		'sound/effects/hallucinations/growl1.ogg',
+		'sound/effects/hallucinations/growl2.ogg',
+		'sound/effects/hallucinations/growl3.ogg',
+		'sound/effects/hallucinations/veryfar_noise.ogg',
+		'sound/effects/hallucinations/wail.ogg',
+	)
 
 /obj/item/organ/tongue/zombie/proc/add_word_to_translations(english_word, zombie_word)
-	GLOB.english_to_zombie[english_word] = zombie_word
+	english_to_zombie[english_word] = zombie_word
 	// zombies don't care about grammar (any tense or form is all translated to the same word)
-	GLOB.english_to_zombie[english_word + plural_s(english_word)] = zombie_word
-	GLOB.english_to_zombie[english_word + "ing"] = zombie_word
-	GLOB.english_to_zombie[english_word + "ed"] = zombie_word
+	english_to_zombie[english_word + plural_s(english_word)] = zombie_word
+	english_to_zombie[english_word + "ing"] = zombie_word
+	english_to_zombie[english_word + "ed"] = zombie_word
 
 /obj/item/organ/tongue/zombie/proc/load_zombie_translations()
 	var/list/zombie_translation = strings("zombie_replacement.json", "zombie")
@@ -435,20 +473,20 @@ GLOBAL_LIST_INIT(english_to_zombie, list())
 		var/list/data = islist(zombie_translation[zombie_word]) ? zombie_translation[zombie_word] : list(zombie_translation[zombie_word])
 		for(var/english_word in data)
 			add_word_to_translations(english_word, zombie_word)
-	GLOB.english_to_zombie = sort_list(GLOB.english_to_zombie) // Alphabetizes the list (for debugging)
+	english_to_zombie = sort_list(english_to_zombie) // Alphabetizes the list (for debugging)
 
 /obj/item/organ/tongue/zombie/modify_speech(datum/source, list/speech_args)
 	var/message = speech_args[SPEECH_MESSAGE]
 	if(message[1] != "*")
 		// setup the global list for translation if it hasn't already been done
-		if(!length(GLOB.english_to_zombie))
+		if(!length(english_to_zombie))
 			load_zombie_translations()
 
 		// make a list of all words that can be translated
 		var/list/message_word_list = splittext(message, " ")
 		var/list/translated_word_list = list()
 		for(var/word in message_word_list)
-			word = GLOB.english_to_zombie[LOWER_TEXT(word)]
+			word = english_to_zombie[LOWER_TEXT(word)]
 			translated_word_list += word ? word : FALSE
 
 		// all occurrences of characters "eiou" (case-insensitive) are replaced with "r"
@@ -475,6 +513,11 @@ GLOBAL_LIST_INIT(english_to_zombie, list())
 		message = capitalize(message)
 		speech_args[SPEECH_MESSAGE] = message
 
+/obj/item/organ/tongue/zombie/on_life(seconds_per_tick)
+	. = ..()
+	if(!IS_UNCONSCIOUS_OR_CRIT(owner) && SPT_PROB(2, seconds_per_tick))
+		playsoundtoken(owner, pick(spooks), 50, TRUE, 10)
+
 /obj/item/organ/tongue/alien
 	name = "alien tongue"
 	desc = "According to leading xenobiologists the evolutionary benefit of having a second mouth in your mouth is \"that it looks badass\"."
@@ -483,6 +526,12 @@ GLOBAL_LIST_INIT(english_to_zombie, list())
 	taste_sensitivity = 10 // LIZARDS ARE ALIENS CONFIRMED
 	modifies_speech = TRUE // not really, they just hiss
 	voice_filter = @{"[0:a] asplit [out0][out2]; [out0] asetrate=%SAMPLE_RATE%*0.8,aresample=%SAMPLE_RATE%,atempo=1/0.8,aformat=channel_layouts=mono [p0]; [out2] asetrate=%SAMPLE_RATE%*1.2,aresample=%SAMPLE_RATE%,atempo=1/1.2,aformat=channel_layouts=mono[p2]; [p0][0][p2] amix=inputs=3"}
+	emote_sounds = list(
+		/datum/emote/living/deathgasp::key = 'sound/mobs/non-humanoids/hiss/hiss6.ogg',
+		/datum/emote/living/carbon/hiss::key = SFX_HISS,
+		/datum/emote/living/scream::key = 'sound/mobs/non-humanoids/hiss/hiss5.ogg',
+	)
+
 // Aliens can only speak alien and a few other languages.
 /obj/item/organ/tongue/alien/get_possible_languages()
 	return list(
@@ -510,6 +559,7 @@ GLOBAL_LIST_INIT(english_to_zombie, list())
 	sense_of_taste = FALSE
 	liked_foodtypes = GROSS | MEAT | RAW | GORE | DAIRY //skeletons eat spooky shit... and dairy, of course
 	disliked_foodtypes = NONE
+	organ_flags = ORGAN_MINERAL
 	modifies_speech = TRUE
 	var/chattering = FALSE
 	var/phomeme_type = "sans"
@@ -539,6 +589,15 @@ GLOBAL_LIST_INIT(english_to_zombie, list())
 	modifies_speech = FALSE
 	liked_foodtypes = VEGETABLES
 	disliked_foodtypes = FRUIT | CLOTH
+	organ_flags = parent_type::organ_flags | ORGAN_ORGANIC
+	languages_native = list(/datum/language/calcic)
+	emote_sounds = list(
+		/datum/emote/living/scream::key = list(
+			'sound/mobs/humanoids/plasmaman/plasmeme_scream_1.ogg',
+			'sound/mobs/humanoids/plasmaman/plasmeme_scream_2.ogg',
+			'sound/mobs/humanoids/plasmaman/plasmeme_scream_3.ogg',
+		),
+	)
 
 /obj/item/organ/tongue/robot
 	name = "robotic voicebox"
@@ -553,12 +612,27 @@ GLOBAL_LIST_INIT(english_to_zombie, list())
 	taste_sensitivity = 25 // not as good as an organic tongue
 	organ_traits = list(TRAIT_SILICON_EMOTES_ALLOWED)
 	voice_filter = "alimiter=0.9,acompressor=threshold=0.2:ratio=20:attack=10:release=50:makeup=2,highpass=f=1000"
+	emote_sounds = list(
+		/datum/emote/living/deathgasp::key = 'sound/mobs/non-humanoids/cyborg/borg_deathsound.ogg',
+	)
 
 /obj/item/organ/tongue/robot/could_speak_language(datum/language/language_path)
 	return TRUE // THE MAGIC OF ELECTRONICS
 
 /obj/item/organ/tongue/robot/modify_speech(datum/source, list/speech_args)
 	speech_args[SPEECH_SPANS] |= SPAN_ROBOT
+
+/obj/item/organ/tongue/robot/on_mob_insert(mob/living/carbon/receiver)
+	. = ..()
+	receiver.grant_language(/datum/language/machine, source = LANGUAGE_TONGUE)
+	to_chat(receiver, span_boldnotice("You gain a new understanding of [/datum/language/machine::name]."))
+
+/obj/item/organ/tongue/robot/on_mob_remove(mob/living/carbon/owner)
+	. = ..()
+	if(QDELING(owner))
+		return
+	owner.remove_language(/datum/language/machine, source = LANGUAGE_TONGUE)
+	to_chat(owner, span_boldnotice("You're not really sure what beeps and boops mean anymore."))
 
 /obj/item/organ/tongue/snail
 	name = "radula"
@@ -589,18 +663,38 @@ GLOBAL_LIST_INIT(english_to_zombie, list())
 	attack_verb_continuous = list("shocks", "jolts", "zaps")
 	attack_verb_simple = list("shock", "jolt", "zap")
 	voice_filter = @{"[0:a] asplit [out0][out2]; [out0] asetrate=%SAMPLE_RATE%*0.99,aresample=%SAMPLE_RATE%,volume=0.3 [p0]; [p0][out2] amix=inputs=2"}
+	languages_native = list(/datum/language/voltaic)
+	emote_sounds = list(
+		/datum/emote/living/scream::key = list(
+			'sound/mobs/humanoids/ethereal/ethereal_scream_1.ogg',
+			'sound/mobs/humanoids/ethereal/ethereal_scream_2.ogg',
+			'sound/mobs/humanoids/ethereal/ethereal_scream_3.ogg',
+		),
+		/datum/emote/living/carbon/hiss::key = 'sound/mobs/humanoids/ethereal/ethereal_hiss.ogg',
+	)
 
-// Ethereal tongues can speak all default + voltaic
-/obj/item/organ/tongue/ethereal/get_possible_languages()
-	return ..() + /datum/language/voltaic
+/obj/item/organ/tongue/ethereal/lustrous
+	//lustrous screams.
+	emote_sounds = list(
+		/datum/emote/living/scream::key = list(
+			'sound/mobs/humanoids/ethereal/lustrous_scream_1.ogg',
+			'sound/mobs/humanoids/ethereal/lustrous_scream_2.ogg',
+			'sound/mobs/humanoids/ethereal/lustrous_scream_3.ogg',
+		),
+		/datum/emote/living/carbon/hiss::key = 'sound/mobs/humanoids/ethereal/ethereal_hiss.ogg',
+	)
 
 /obj/item/organ/tongue/cat
 	name = "felinid tongue"
-	desc = "A fleshy muscle mostly used for meowing."
+	desc = "A fleshy muscle mostly used for meowing. Or biting."
 	say_mod = "meows"
 	liked_foodtypes = SEAFOOD | ORANGES | BUGS | GORE
 	disliked_foodtypes = GROSS | CLOTH | RAW
-	organ_traits = list(TRAIT_WOUND_LICKER, TRAIT_FISH_EATER)
+	organ_traits = list(TRAIT_WOUND_LICKER, TRAIT_FISH_EATER, TRAIT_CARPOTOXIN_IMMUNE, TRAIT_CAT_EMOTES_ALLOWED)
+	languages_native = list(/datum/language/nekomimetic)
+	emote_sounds = list(
+		/datum/emote/living/carbon/hiss::key = 'sound/mobs/humanoids/felinid/felinid_hiss.ogg',
+	)
 
 /obj/item/organ/tongue/jelly
 	name = "jelly tongue"
@@ -609,6 +703,7 @@ GLOBAL_LIST_INIT(english_to_zombie, list())
 	liked_foodtypes = MEAT | BUGS
 	disliked_foodtypes = GROSS
 	toxic_foodtypes = NONE
+	languages_native = list(/datum/language/slime)
 
 /obj/item/organ/tongue/jelly/get_food_taste_reaction(obj/item/food, foodtypes = NONE)
 	// a silver slime created this? what a delicacy!
@@ -622,6 +717,10 @@ GLOBAL_LIST_INIT(english_to_zombie, list())
 	say_mod = "chimpers"
 	liked_foodtypes = MEAT | FRUIT | BUGS
 	disliked_foodtypes = CLOTH
+	languages_native = list(/datum/language/monkey)
+	emote_sounds = list(
+		/datum/emote/living/scream::key = SFX_SCREECH,
+	)
 
 /obj/item/organ/tongue/moth
 	name = "moth tongue"
@@ -630,11 +729,13 @@ GLOBAL_LIST_INIT(english_to_zombie, list())
 	liked_foodtypes = VEGETABLES | DAIRY | CLOTH
 	disliked_foodtypes = FRUIT | GROSS | BUGS | GORE
 	toxic_foodtypes = MEAT | RAW | SEAFOOD
-
-/obj/item/organ/tongue/zombie
-	name = "rotting tongue"
-	desc = "Makes you speak like you're at the dentist and you just absolutely refuse to spit because you forgot to mention you were allergic to space shellfish."
-	say_mod = "moans"
+	languages_native = list(/datum/language/moffic)
+	organ_traits = list(TRAIT_MOTH_EMOTES_ALLOWED)
+	emote_sounds = list(
+		/datum/emote/living/scream::key = 'sound/mobs/humanoids/moth/scream_moth.ogg',
+		/datum/emote/living/laugh::key = 'sound/mobs/humanoids/moth/moth_laugh1.ogg',
+		/datum/emote/living/deathgasp::key = 'sound/mobs/humanoids/moth/moth_death.ogg',
+	)
 
 /obj/item/organ/tongue/mush
 	name = "mush-tongue-room"
@@ -642,6 +743,7 @@ GLOBAL_LIST_INIT(english_to_zombie, list())
 	icon = 'icons/obj/service/hydroponics/seeds.dmi'
 	icon_state = "mycelium-angel"
 	say_mod = "poofs"
+	languages_native = list(/datum/language/mushroom)
 
 /obj/item/organ/tongue/pod
 	name = "pod tongue"
@@ -651,6 +753,7 @@ GLOBAL_LIST_INIT(english_to_zombie, list())
 	disliked_foodtypes = GORE | MEAT | DAIRY | SEAFOOD | BUGS
 	foodtype_flags = PODPERSON_ORGAN_FOODTYPES
 	color = COLOR_LIME
+	languages_native = list(/datum/language/sylvan)
 
 /obj/item/organ/tongue/golem
 	name = "golem tongue"
@@ -662,3 +765,13 @@ GLOBAL_LIST_INIT(english_to_zombie, list())
 	liked_foodtypes = STONE
 	disliked_foodtypes = NONE //you don't care for much else besides stone
 	toxic_foodtypes = NONE //you can eat fucking uranium
+	languages_native = list(/datum/language/terrum)
+
+/obj/item/organ/tongue/shadow
+	name = "shadow tongue"
+	color = COLOR_ALMOST_BLACK
+	languages_native = list(/datum/language/shadowtongue)
+	say_mod = "wails"
+	emote_sounds = list(
+		/datum/emote/living/scream::key = 'sound/mobs/humanoids/shadow/shadow_wail.ogg',
+	)

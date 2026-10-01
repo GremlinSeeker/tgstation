@@ -3,14 +3,14 @@
 /datum/quirk/all_nighter
 	name = "All Nighter"
 	desc = "You didn't get any sleep last night, and people can tell! You'll constantly be in a bad mood and will have a tendency to sleep longer. Stimulants or a nap might help, though."
-	icon = FA_ICON_BED
+	icon = FA_ICON_MOON
 	value = -4
 	mob_trait = TRAIT_HEAVY_SLEEPER
 	gain_text = span_danger("You feel exhausted.")
 	lose_text = span_notice("You feel well rested.")
 	medical_record_text = "Patient appears to be suffering from sleep deprivation."
 	hardcore_value = 2
-	quirk_flags = QUIRK_HUMAN_ONLY|QUIRK_CHANGES_APPEARANCE|QUIRK_MOODLET_BASED|QUIRK_PROCESSES
+	quirk_flags = QUIRK_HUMAN_ONLY|QUIRK_CHANGES_APPEARANCE|QUIRK_PROCESSES
 
 	mail_goodies = list(
 		/obj/item/clothing/glasses/blindfold,

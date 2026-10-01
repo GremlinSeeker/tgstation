@@ -26,7 +26,7 @@
 	///Check if the object can be unwrenched
 	var/can_unwrench = FALSE
 	///Bitflag of the initialized directions (NORTH | SOUTH | EAST | WEST)
-	var/initialize_directions = NONE
+	var/initialize_directions = ALL_CARDINALS
 	///The color of the pipe
 	var/pipe_color = ATMOS_COLOR_OMNI
 	///What layer the pipe is in (from 1 to 5, default 3)
@@ -46,7 +46,7 @@
 	var/list/obj/machinery/atmospherics/nodes
 
 	///The path of the pipe/device that will spawn after unwrenching it (such as pipe fittings)
-	var/construction_type
+	var/obj/item/pipe/construction_type
 	///icon_state as a pipe item
 	var/pipe_state
 	///Check if the device should be on or off (mostly used in processing for machines)
@@ -68,9 +68,6 @@
 	///keeps the name of the object from being overridden if it's vareditted.
 	var/override_naming
 
-	///If we should init and immediately start processing
-	var/init_processing = FALSE
-
 	armor_type = /datum/armor/machinery_atmospherics
 
 /datum/armor/machinery_atmospherics
@@ -81,29 +78,14 @@
 	fire = 100
 	acid = 70
 
-/obj/machinery/atmospherics/post_machine_initialize()
-	. = ..()
-	update_name()
-
-/obj/machinery/atmospherics/examine(mob/user)
-	. = ..()
-	. += span_notice("[src] is on layer [piping_layer].")
-	if((vent_movement & VENTCRAWL_ENTRANCE_ALLOWED) && isliving(user))
-		var/mob/living/L = user
-		if(HAS_TRAIT(L, TRAIT_VENTCRAWLER_NUDE) || HAS_TRAIT(L, TRAIT_VENTCRAWLER_ALWAYS))
-			. += span_notice("Alt-click to crawl through it.")
-
-/obj/machinery/atmospherics/New(loc, process = TRUE, setdir, init_dir = ALL_CARDINALS)
+/obj/machinery/atmospherics/Initialize(mapload, process = TRUE, setdir, init_dir = initialize_directions)
 	if(!isnull(setdir))
 		setDir(setdir)
 	if(pipe_flags & PIPING_CARDINAL_AUTONORMALIZE)
 		normalize_cardinal_directions()
 	nodes = new(device_type)
-	init_processing = process
-	..()
 	set_init_directions(init_dir)
 
-/obj/machinery/atmospherics/Initialize(mapload)
 	if(mapload && name != initial(name))
 		override_naming = TRUE
 	var/turf/turf_loc = null
@@ -116,9 +98,13 @@
 
 	SSspatial_grid.add_grid_awareness(src, SPATIAL_GRID_CONTENTS_TYPE_ATMOS)
 	SSspatial_grid.add_grid_membership(src, turf_loc, SPATIAL_GRID_CONTENTS_TYPE_ATMOS)
-	if(init_processing)
+	if(process)
 		SSair.start_processing_machine(src)
 	return ..()
+
+/obj/machinery/atmospherics/post_machine_initialize()
+	. = ..()
+	update_name()
 
 /obj/machinery/atmospherics/Destroy()
 	for(var/i in 1 to device_type)
@@ -131,6 +117,14 @@
 	QDEL_NULL(cap_overlay)
 
 	return ..()
+
+/obj/machinery/atmospherics/examine(mob/user)
+	. = ..()
+	. += span_notice("[src] is on layer [piping_layer].")
+	if((vent_movement & VENTCRAWL_ENTRANCE_ALLOWED) && isliving(user))
+		var/mob/living/L = user
+		if(HAS_TRAIT(L, TRAIT_VENTCRAWLER_NUDE) || HAS_TRAIT(L, TRAIT_VENTCRAWLER_ALWAYS))
+			. += span_notice("Alt-click to crawl through it.")
 
 /**
  * Sets up our pipe hiding logic, consolidated in one place so subtypes may override it.
@@ -179,22 +173,36 @@
 /obj/machinery/atmospherics/proc/destroy_network()
 	return
 
+/**
+ * Turns the machine on/off
+ * Arguments
+ *
+ * * active - the state of the machine
+ */
 /obj/machinery/atmospherics/proc/set_on(active)
+	SHOULD_CALL_PARENT(TRUE)
+
+	if(active == on)
+		return
+
 	on = active
+	update_appearance(UPDATE_ICON)
 	SEND_SIGNAL(src, COMSIG_ATMOS_MACHINE_SET_ON, on)
 
 /// This should only be called by SSair as part of the rebuild queue.
 /// Handles rebuilding pipelines after init or they've been changed.
 /obj/machinery/atmospherics/proc/rebuild_pipes()
-	var/list/targets = get_rebuild_targets()
 	rebuilding = FALSE
-	for(var/datum/pipeline/build_off as anything in targets)
-		build_off.build_pipeline(src) //This'll add to the expansion queue
+	var/datum/pipeline/build_target = get_rebuild_target()
+	if(!build_target)
+		return
+	build_target.build_pipeline(src) //This'll add to the expansion queue
+	SSair.add_to_rebuild_queue(src) // expansion can connect several ports. revisit this machine after the expansion queue has been processed
 
 /**
- * Returns a list of new pipelines that need to be built up
+ * Assigns and returns the next pipeline that needs to be built up. Make sure to expand it before requesting another
  */
-/obj/machinery/atmospherics/proc/get_rebuild_targets()
+/obj/machinery/atmospherics/proc/get_rebuild_target()
 	return
 
 /**
@@ -403,14 +411,16 @@
 	nodes[nodes.Find(reference)] = null
 	update_appearance()
 
-/obj/machinery/atmospherics/attackby(obj/item/W, mob/user, params)
-	if(istype(W, /obj/item/pipe)) //lets you autodrop
-		var/obj/item/pipe/pipe = W
-		if(user.dropItemToGround(pipe))
-			pipe.set_piping_layer(piping_layer) //align it with us
-			return TRUE
-	else
-		return ..()
+/obj/machinery/atmospherics/item_interaction(mob/living/user, obj/item/tool, list/modifiers)
+	if(!istype(tool, /obj/item/pipe)) //lets you autodrop
+		return NONE
+
+	var/obj/item/pipe/pipe = tool
+	if(!user.dropItemToGround(pipe))
+		return ITEM_INTERACT_BLOCKING
+
+	pipe.set_piping_layer(piping_layer) //align it with us
+	return ITEM_INTERACT_SUCCESS
 
 /obj/machinery/atmospherics/wrench_act(mob/living/user, obj/item/I)
 	if(!can_unwrench(user))
@@ -590,6 +600,9 @@
 		break
 
 	if(!target_move)
+		// If we couldn't find a target to move to and we're ventcrawling, try to exit if this vent allows it
+		if(HAS_TRAIT(user, TRAIT_MOVE_VENTCRAWLING) && (vent_movement & VENTCRAWL_ENTRANCE_ALLOWED))
+			user.handle_ventcrawl(src)
 		return
 
 	if(!(target_move.vent_movement & VENTCRAWL_ALLOWED))
@@ -626,9 +639,6 @@
  */
 /obj/machinery/atmospherics/proc/return_pipenets()
 	return list()
-
-/obj/machinery/atmospherics/update_remote_sight(mob/user)
-	user.add_sight(SEE_TURFS|BLIND)
 
 /**
  * Used for certain children of obj/machinery/atmospherics to not show pipe vision when mob is inside it.
@@ -677,7 +687,7 @@
 
 	SET_PLANE_EXPLICIT(cap_overlay, initial(plane), our_turf)
 
-	cap_overlay.color = pipe_color
+	cap_overlay.color = (pipe_color == ATMOS_COLOR_OMNI && nodes[1]?.pipe_color) || pipe_color
 	cap_overlay.layer = initial(layer)
 	cap_overlay.icon_state = "[bitfield]_[piping_layer]"
 

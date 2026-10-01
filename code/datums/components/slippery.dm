@@ -27,14 +27,16 @@
 	var/daze_time = 3 SECONDS
 	/// Flags for how slippery the parent is. See [__DEFINES/mobs.dm]
 	var/lube_flags
+	/// If we slip when we are attacked with
+	var/slip_on_damage = FALSE
 	/// Optional callback allowing you to define custom conditions for slipping
 	var/datum/callback/can_slip_callback
 	/// Optional call back that is called when a mob slips on this component
 	var/datum/callback/on_slip_callback
 	/// If parent is an item, this is the person currently holding/wearing the parent (or the parent if no one is holding it)
 	var/mob/living/holder
-	/// Whitelist of item slots the parent can be equipped in that make the holder slippery. If null or empty, it will always make the holder slippery.
-	var/list/slot_whitelist = list(ITEM_SLOT_OCLOTHING, ITEM_SLOT_ICLOTHING, ITEM_SLOT_GLOVES, ITEM_SLOT_FEET, ITEM_SLOT_HEAD, ITEM_SLOT_MASK, ITEM_SLOT_BELT, ITEM_SLOT_NECK)
+	/// Whitelist bitfields of item slots bitflags the parent can be equipped in that make the holder slippery. If null or empty, it will always make the holder slippery.
+	var/slot_whitelist = ITEM_SLOT_OCLOTHING | ITEM_SLOT_ICLOTHING | ITEM_SLOT_GLOVES | ITEM_SLOT_FEET | ITEM_SLOT_HEAD | ITEM_SLOT_MASK | ITEM_SLOT_BELT | ITEM_SLOT_NECK
 	///what we give to connect_loc by default, makes slippable mobs moving over us slip
 	var/static/list/default_connections = list(
 		COMSIG_ATOM_ENTERED = PROC_REF(Slip),
@@ -59,6 +61,7 @@
  * * force_drop - should the crossing mob drop items in its hands or not
  * * slot_whitelist - flags controlling where on a mob this item can be equipped to make the parent mob slippery full list [here][ITEM_SLOT_OCLOTHING]
  * * datum/callback/on_slip_callback - Callback to add custom behaviours as the crossing mob is slipped
+ * * slip_on_damage - whether the component should cause slipping when the parent attacks the target
  */
 /datum/component/slippery/Initialize(
 	knockdown,
@@ -69,6 +72,7 @@
 	force_drop = FALSE,
 	slot_whitelist,
 	datum/callback/can_slip_callback,
+	slip_on_damage = FALSE,
 )
 	src.knockdown_time = max(knockdown, 0)
 	src.paralyze_time = max(paralyze, 0)
@@ -77,6 +81,7 @@
 	src.lube_flags = lube_flags
 	src.can_slip_callback = can_slip_callback
 	src.on_slip_callback = on_slip_callback
+	src.slip_on_damage = slip_on_damage
 	if(slot_whitelist)
 		src.slot_whitelist = slot_whitelist
 
@@ -89,6 +94,8 @@
 		RegisterSignal(parent, COMSIG_ITEM_DROPPED, PROC_REF(on_drop))
 		RegisterSignal(parent, COMSIG_ITEM_APPLY_FANTASY_BONUSES, PROC_REF(apply_fantasy_bonuses))
 		RegisterSignal(parent, COMSIG_ITEM_REMOVE_FANTASY_BONUSES, PROC_REF(remove_fantasy_bonuses))
+		RegisterSignal(parent, COMSIG_ITEM_AFTERATTACK, PROC_REF(slip_on_afterattack))
+		RegisterSignal(parent, COMSIG_MOVABLE_IMPACT, PROC_REF(slip_on_throw_impact))
 
 /datum/component/slippery/Destroy(force)
 	can_slip_callback = null
@@ -135,12 +142,13 @@
 	force_drop = FALSE,
 	slot_whitelist,
 	datum/callback/can_slip_callback,
+	slip_on_damage = FALSE,
 )
 	if(component)
 		knockdown = component.knockdown_time
 		lube_flags = component.lube_flags
 		on_slip_callback = component.on_slip_callback
-		can_slip_callback = component.on_slip_callback
+		can_slip_callback = component.can_slip_callback
 		paralyze = component.paralyze_time
 		daze = component.daze_time
 		force_drop = component.force_drop_items
@@ -153,6 +161,7 @@
 	src.lube_flags = lube_flags
 	src.on_slip_callback = on_slip_callback
 	src.can_slip_callback = can_slip_callback
+	src.slip_on_damage = slip_on_damage
 	if(slot_whitelist)
 		src.slot_whitelist = slot_whitelist
 /**
@@ -171,7 +180,7 @@
 		if(HAS_TRAIT(turf, TRAIT_TURF_IGNORE_SLIPPERY))
 			return
 	var/mob/living/victim = arrived
-	if(victim.movement_type & MOVETYPES_NOT_TOUCHING_GROUND)
+	if((victim.movement_type & MOVETYPES_NOT_TOUCHING_GROUND) && !(lube_flags & SLIP_IN_NOGRAV))
 		return
 	if(can_slip_callback && !can_slip_callback.Invoke(holder, victim))
 		return
@@ -191,7 +200,7 @@
 /datum/component/slippery/proc/on_equip(datum/source, mob/equipper, slot)
 	SIGNAL_HANDLER
 
-	if((!LAZYLEN(slot_whitelist) || (slot in slot_whitelist)) && isliving(equipper))
+	if((!slot || (slot & slot_whitelist)) && isliving(equipper))
 		holder = equipper
 		qdel(GetComponent(/datum/component/connect_loc_behalf))
 		AddComponent(/datum/component/connect_loc_behalf, holder, mob_connections)
@@ -247,3 +256,19 @@
 /datum/component/slippery/UnregisterFromParent()
 	. = ..()
 	qdel(GetComponent(/datum/component/connect_loc_behalf))
+
+/datum/component/slippery/proc/slip_on_afterattack(datum/source, atom/target, mob/user, ...)
+	SIGNAL_HANDLER
+
+	if(!slip_on_damage || !isliving(target))
+		return
+
+	Slip(source, target)
+
+/datum/component/slippery/proc/slip_on_throw_impact(datum/source, atom/hit_atom, datum/thrownthing/throwing_datum, caught)
+	SIGNAL_HANDLER
+
+	if(!slip_on_damage || !isliving(hit_atom) || caught)
+		return
+
+	Slip(source, hit_atom)

@@ -14,7 +14,7 @@ import { OrbitContext } from '.';
 import { HEALTH, VIEWMODE } from './constants';
 import { getDepartmentByJob, getDisplayName } from './helpers';
 import { JobIcon } from './JobIcon';
-import { OrbitData } from './types';
+import type { OrbitData } from './types';
 
 /** Slide open menu with more info about the current observable */
 export function OrbitBlade(props) {
@@ -109,7 +109,7 @@ function OrbitInfo(props) {
   const { name, full_name, health, job } = orbiting;
 
   let department;
-  if ('job' in orbiting && !!job) {
+  if ('job' in orbiting && job) {
     department = getDepartmentByJob(job);
   }
 

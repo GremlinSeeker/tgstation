@@ -1,4 +1,4 @@
-import { BooleanLike } from 'tgui-core/react';
+import type { BooleanLike } from 'tgui-core/react';
 
 export enum ShuttleState {
   BUYING_SHUTTLE = 'buying_shuttle',
@@ -24,6 +24,8 @@ export type Shuttle = {
   price: number;
   ref: string;
   refund: number;
+  department_locked: boolean;
+  department_name: string;
 };
 
 type Message = {

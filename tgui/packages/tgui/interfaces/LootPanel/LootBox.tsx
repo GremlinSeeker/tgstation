@@ -1,14 +1,9 @@
 import { Button, Stack } from 'tgui-core/components';
-import { BooleanLike } from 'tgui-core/react';
 import { capitalizeFirst } from 'tgui-core/string';
 
 import { useBackend } from '../../backend';
 import { IconDisplay } from './IconDisplay';
-import { SearchGroup, SearchItem } from './types';
-
-type Data = {
-  is_blind: BooleanLike;
-};
+import type { SearchGroup, SearchItem } from './types';
 
 type Props =
   | {
@@ -19,8 +14,7 @@ type Props =
     };
 
 export function LootBox(props: Props) {
-  const { act, data } = useBackend<Data>();
-  const { is_blind } = data;
+  const { act } = useBackend();
 
   let amount = 0;
   let item: SearchItem;
@@ -63,16 +57,14 @@ export function LootBox(props: Props) {
           overflow="hidden"
           style={{ textOverflow: 'ellipsis' }}
         >
-          {!is_blind && name}
+          {name}
         </Stack.Item>
         <Stack.Item lineHeight="34px" pr={1}>
-          {amount > 1 && 'x' + amount}
+          {amount > 1 && `x${amount}`}
         </Stack.Item>
       </Stack>
     </Button>
   );
-
-  if (is_blind) return content;
 
   return content;
 }

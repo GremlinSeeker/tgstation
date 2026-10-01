@@ -10,16 +10,25 @@ import {
 import { formatSiUnit } from 'tgui-core/format';
 
 import { useBackend } from '../../backend';
+import { useSharedState } from '../../backend';
 import { Window } from '../../layouts';
+import { logger } from '../../logging';
 import { AccessConfig } from '../common/AccessConfig';
 import { AlertPane } from './AlertPane';
-import { MainData } from './data';
+import type { MainData } from './data';
 import { ModulesPane } from './ModulesPane';
 
 export const Mecha = (props) => {
   const { data } = useBackend<MainData>();
+  const [showModuleList, setShowModuleList] = useSharedState(
+    'showModuleList',
+    true,
+  );
+  const mainWidth = 400;
+  const equipmentWidth = 400;
+  const windowWidth = mainWidth + (showModuleList ? equipmentWidth : 0);
   return (
-    <Window theme={data.ui_theme} width={800} height={560}>
+    <Window theme={data.ui_theme} width={windowWidth} height={560}>
       <Window.Content>
         <Content />
       </Window.Content>
@@ -38,23 +47,37 @@ export const Content = (props) => {
     one_access,
     regions,
     accesses,
+    diagnostic_status,
   } = data;
-  const id_lock = mecha_flags & mechflag_keys['ID_LOCK_ON'];
+  logger.log(mechflag_keys);
+
+  const id_lock = mecha_flags & mechflag_keys.ID_LOCK_ON;
   return (
     <Stack fill>
       <Stack.Item grow={1}>
-        <Stack vertical fill>
+        <Stack vertical fill minWidth='270px'>
           <Stack.Item grow overflow="hidden">
             <Section
               fill
               title={name}
               buttons={
-                <Button
-                  icon="edit"
-                  tooltip="Rename"
-                  tooltipPosition="left"
-                  onClick={() => act('changename')}
-                />
+                <>
+                  <Button
+                    icon="edit"
+                    tooltip="Rename"
+                    tooltipPosition="left"
+                    onClick={() => act('changename')}
+                  />
+                  {!diagnostic_status && (
+                    <Button
+                      icon="tachograph-digital"
+                      color="violet"
+                      tooltip="Diagnostic"
+                      tooltipPosition="left"
+                      onClick={() => act('diagnostic')}
+                    />
+                  )}
+                </>
               }
             >
               <Stack fill vertical>
@@ -200,8 +223,8 @@ const IntegrityBar = (props) => {
 const LightsBar = (props) => {
   const { act, data } = useBackend<MainData>();
   const { power_level, power_max, mecha_flags, mechflag_keys } = data;
-  const has_lights = mecha_flags & mechflag_keys['HAS_LIGHTS'];
-  const lights_on = mecha_flags & mechflag_keys['LIGHTS_ON'];
+  const has_lights = mecha_flags & mechflag_keys.HAS_LIGHTS;
+  const lights_on = mecha_flags & mechflag_keys.LIGHTS_ON;
   return (
     <LabeledList.Item label="Lights">
       <Button

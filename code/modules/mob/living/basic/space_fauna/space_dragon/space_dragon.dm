@@ -18,6 +18,7 @@
 	health_doll_icon = "spacedragon"
 	faction = list(FACTION_CARP)
 	mob_biotypes = MOB_SPECIAL
+	status_flags = CANPUSH
 	flags_1 = PREVENT_CONTENTS_EXPLOSION_1
 	gender = NEUTER
 	maxHealth = 400
@@ -25,7 +26,7 @@
 	unsuitable_cold_damage = 0
 	unsuitable_heat_damage = 0
 	unsuitable_atmos_damage = 0
-	damage_coeff = list(BRUTE = 1, BURN = 1, TOX = 1, STAMINA = 0.5, OXY = 1)
+	physiology = list(STAMINA = 0.5)
 	combat_mode = TRUE
 	speed = 0
 	attack_verb_continuous = "chomps"
@@ -51,6 +52,10 @@
 	lighting_cutoff_red = 12
 	lighting_cutoff_green = 15
 	lighting_cutoff_blue = 34
+	max_stamina = 200
+	stamina_crit_threshold = BASIC_MOB_NO_STAMCRIT
+	stamina_recovery = 5
+	max_stamina_slowdown = 12
 
 	/// The colour of the space dragon
 	var/chosen_colour
@@ -75,7 +80,7 @@
 	AddElement(/datum/element/content_barfer)
 	AddElement(/datum/element/wall_tearer, tear_time = 4 SECONDS, reinforced_multiplier = 3, do_after_key = DOAFTER_SOURCE_SPACE_DRAGON_INTERACTION)
 	AddElement(/datum/element/door_pryer, pry_time = 4 SECONDS, interaction_key = DOAFTER_SOURCE_SPACE_DRAGON_INTERACTION)
-	AddComponent(/datum/component/seethrough_mob, keep_color = TRUE)
+	AddComponent(/datum/component/seethrough_mob)
 	AddComponent(/datum/component/profound_fisher, new /obj/item/fishing_rod/mob_fisher/dragon(src))
 	RegisterSignal(src, COMSIG_HOSTILE_PRE_ATTACKINGTARGET, PROC_REF(pre_attack))
 	RegisterSignal(src, COMSIG_MOB_STATCHANGE, PROC_REF(on_stat_changed))
@@ -131,11 +136,11 @@
 		rename_dragon()
 		return
 	to_chat(src, span_notice("Your name is now [span_name("[chosen_name]")], the feared Space Dragon."))
-	fully_replace_character_name(null, chosen_name)
+	fully_replace_character_name(null, chosen_name, log_new_name = TRUE)
 
 /// Select scale colour with the colour picker
 /mob/living/basic/space_dragon/proc/select_colour()
-	chosen_colour = input(src, "What colour would you like to be?" ,"Colour Selection", COLOR_WHITE) as color|null
+	chosen_colour = tgui_color_picker(src, "What colour would you like to be?" ,"Colour Selection", COLOR_WHITE)
 	if(!chosen_colour) // Redo proc until we get a color
 		to_chat(src, span_warning("Not a valid colour, please try again."))
 		select_colour()
@@ -214,7 +219,7 @@
 			health_recovered *= 1.75 // plus 7.5 points when eating advanced space carps (from the rift)
 		else
 			health_recovered *= 0.75 // minus 7.5 points when eating a human for example.
-	adjust_health(round(-health_recovered, 1))
+	adjust_brute_loss(round(-health_recovered, 1))
 	if (QDELETED(food) || food.loc == src)
 		return FALSE
 	playsound(src, 'sound/effects/magic/demon_attack1.ogg', 60, TRUE)
@@ -233,7 +238,7 @@
 		if(fish_left <= 0)
 			addtimer(CALLBACK(src, PROC_REF(begin_sharkify)), 2 SECONDS)
 			fish_left = initial(fish_left) //prevent begin_sharkify from being called again by eating another fish.
-	adjust_health(round(-health_recovered, 1))
+	adjust_brute_loss(round(-health_recovered, 1))
 	playsound(src, 'sound/effects/magic/demon_attack1.ogg', 40, TRUE)
 	visible_message(span_boldwarning("[src] swallows [fish] whole!"))
 	if(HAS_TRAIT(fish, TRAIT_YUCKY_FISH))
@@ -298,7 +303,7 @@
 	if (severity != EXPLODE_DEVASTATE)
 		return
 	var/damage_coefficient = rand(devastation_damage_min_percentage, devastation_damage_max_percentage)
-	adjustBruteLoss(initial(maxHealth)*damage_coefficient)
+	adjust_brute_loss(initial(maxHealth)*damage_coefficient)
 	return COMPONENT_CANCEL_EX_ACT // we handled it
 
 /// Subtype used by the midround/event

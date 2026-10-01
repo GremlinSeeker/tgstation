@@ -145,8 +145,8 @@
 	playsound(landing_turf, 'sound/effects/magic/exit_blood.ogg', 50, TRUE, -1)
 
 	// Make the mob have the color of the blood pool it came out of
-	var/obj/effect/decal/cleanable/came_from = locate() in landing_turf
-	var/new_color = came_from?.get_blood_color()
+	var/obj/effect/decal/cleanable/blood/came_from = locate() in landing_turf
+	var/new_color = came_from?.color
 	if(!new_color)
 		return
 
@@ -187,7 +187,7 @@
 
 	var/mob/living/carbon/human/victim = coming_with
 
-	if(victim.stat == CONSCIOUS)
+	if(!IS_UNCONSCIOUS_OR_CRIT(victim))
 		jaunt_turf.visible_message(
 			span_warning("[victim] kicks free of [blood] just before entering it!"),
 			blind_message = span_notice("You hear splashing and struggling."),

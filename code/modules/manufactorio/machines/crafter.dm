@@ -50,14 +50,12 @@
 	return MANUFACTURING_SUCCESS
 
 /obj/machinery/power/manufacturing/crafter/multitool_act(mob/living/user, obj/item/tool)
-	. = NONE
-	var/list/unavailable = list()
-	for(var/datum/crafting_recipe/potential_recipe as anything in cooking ? GLOB.cooking_recipes : GLOB.crafting_recipes)
+	var/list/available = list()
+	for(var/datum/crafting_recipe/potential_recipe as anything in craftsman.get_visible_recipes(user))
 		var/obj/as_obj = potential_recipe.result
-		if(!(ispath(as_obj, /obj) && !ispath(as_obj, /obj/effect) && initial(as_obj.anchored)) && craftsman.is_recipe_available(potential_recipe, user))
-			continue
-		unavailable += potential_recipe
-	var/result = tgui_input_list(usr, "Recipe", "Select Recipe", (cooking ? GLOB.cooking_recipes : GLOB.crafting_recipes) - unavailable)
+		if(ispath(as_obj, /obj) && !ispath(as_obj, /obj/effect) && !initial(as_obj.anchored))
+			available += potential_recipe
+	var/result = tgui_input_list(user, "Recipe", "Select Recipe", available)
 	if(isnull(result) || result == recipe || !user.can_perform_action(src))
 		return ITEM_INTERACT_FAILURE
 	recipe = result
@@ -106,6 +104,9 @@
 	if(istext(result))
 		say("Crafting failed[result]")
 		return
+	if(isstack(result)) //it doesn't have hands to pick up stacks so let's try to merge them instead
+		var/obj/item/stack/stack = result
+		stack.merge_with_loc()
 	var/list/diff = get_overfloor_objects() - prediff
 	for(var/atom/movable/diff_result as anything in diff)
 		if(iseffect(diff_result) || ismob(diff_result)) // PLEASE dont stuff cats (or other mobs) into the cat grinder 9000
@@ -114,7 +115,6 @@
 			diff_result.pixel_x += rand(-4, 4)
 			diff_result.pixel_y += rand(-4, 4)
 		withheld += WEAKREF(diff_result)
-		recipe.on_craft_completion(src, diff_result)
 	send_withheld()
 
 /obj/machinery/power/manufacturing/crafter/cooker

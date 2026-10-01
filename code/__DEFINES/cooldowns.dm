@@ -38,6 +38,9 @@
 #define COOLDOWN_MECHA_MISSILE_STRIKE "mecha_missile_strike"
 #define COOLDOWN_MECHA_CABIN_SEAL "mecha_cabin_seal"
 
+//skybulge cooldown
+#define COOLDOWN_SKYBULGE_JUMP "skybulge_jump"
+
 //car cooldowns
 #define COOLDOWN_CAR_HONK "car_honk"
 
@@ -56,8 +59,9 @@
 #define COOLDOWN_CIRCUIT_TARGET_INTERCEPT "circuit_target_intercept"
 #define COOLDOWN_CIRCUIT_VIEW_SENSOR "circuit_view_sensor"
 
-// mob cooldowns
+// emote cooldowns
 #define COOLDOWN_YAWN_PROPAGATION "yawn_propagation_cooldown"
+#define COOLDOWN_DEATHGASP "deathgasp_cooldown"
 
 //Shared cooldowns for actions
 #define MOB_SHARED_COOLDOWN_1 (1<<0)

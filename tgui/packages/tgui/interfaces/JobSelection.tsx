@@ -1,4 +1,4 @@
-import { deepMerge } from 'common/collections';
+import { toMerged } from 'es-toolkit';
 import { Color } from 'tgui-core/color';
 import {
   Box,
@@ -9,11 +9,10 @@ import {
   Stack,
   StyleableSection,
 } from 'tgui-core/components';
-import { BooleanLike } from 'tgui-core/react';
+import type { BooleanLike } from 'tgui-core/react';
 
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
-import { JOB2ICON } from './common/JobToIcon';
 
 type Job = {
   unavailable_reason: string | null;
@@ -22,6 +21,7 @@ type Job = {
   used_slots: number;
   prioritized: BooleanLike;
   description: string;
+  jobIcon: string;
 };
 
 type Department = {
@@ -44,13 +44,12 @@ type JobEntryProps = {
   jobName: string;
   job: Job;
   department: Department;
+  jobIcon: string;
   onClick: () => void;
 };
 
 function JobEntry(props: JobEntryProps) {
-  const { jobName, job, department, onClick } = props;
-
-  const jobIcon = JOB2ICON[jobName] || null;
+  const { jobName, job, department, jobIcon, onClick } = props;
 
   return (
     <Button
@@ -158,6 +157,7 @@ function DepartmentEntry(props: DepartmentEntryProps) {
                 key={name}
                 jobName={name}
                 job={job}
+                jobIcon={job.jobIcon}
                 department={department}
                 onClick={() => {
                   act('select_job', { job: name });
@@ -177,7 +177,7 @@ export function JobSelection(props) {
     return null; // Stop TGUI whitescreens with TGUI-dev!
   }
 
-  const departments: Record<string, Department> = deepMerge(
+  const departments: Record<string, Department> = toMerged(
     data.departments,
     data.departments_static,
   );

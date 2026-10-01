@@ -1,16 +1,15 @@
-import { sortBy } from 'common/collections';
+import { sortBy } from 'es-toolkit';
 import { Box, Button, Icon, Section, Stack } from 'tgui-core/components';
 
 import { useBackend } from '../../backend';
 import { EMAG_SHUTTLE_NOTICE } from './constants';
-import { CommsConsoleData, Shuttle, ShuttleState } from './types';
+import { type CommsConsoleData, type Shuttle, ShuttleState } from './types';
 
 function sortShuttles(shuttles: CommsConsoleData['shuttles']) {
-  return sortBy(
-    shuttles,
+  return sortBy(shuttles, [
     (shuttle) => !shuttle.emagOnly,
     (shuttle) => shuttle.initial_cost,
-  );
+  ]);
 }
 
 export function PageBuyingShuttle(props) {
@@ -52,7 +51,23 @@ function ShuttleCard(props: ShuttleCardProps) {
   const { shuttle } = props;
 
   const { act, data } = useBackend<CommsConsoleData>();
-  const { budget } = data;
+  const {
+    budget,
+    displayed_currency_name,
+    displayed_currency_full_name,
+    emagged,
+  } = data;
+
+  const isButtonDisabled = budget < shuttle.creditCost;
+
+  let buttonTooltip: string | undefined;
+  if (budget < shuttle.creditCost) {
+    buttonTooltip = `You need ${shuttle.creditCost - budget} more ${displayed_currency_full_name}.`;
+  } else if (shuttle.department_locked) {
+    buttonTooltip = `Requires ${shuttle.department_name} Department to have the highest employees count.`;
+  } else if (shuttle.emagOnly) {
+    buttonTooltip = EMAG_SHUTTLE_NOTICE;
+  }
 
   return (
     <Section
@@ -68,23 +83,27 @@ function ShuttleCard(props: ShuttleCardProps) {
       }
       buttons={
         <Button
-          color={shuttle.emagOnly ? 'red' : 'default'}
-          disabled={budget < shuttle.creditCost}
+          color={
+            shuttle.department_locked
+              ? 'danger'
+              : shuttle.emagOnly
+                ? 'red'
+                : 'default'
+          }
+          disabled={isButtonDisabled}
           onClick={() =>
             act('purchaseShuttle', {
               shuttle: shuttle.ref,
             })
           }
-          tooltip={
-            budget < shuttle.creditCost
-              ? `You need ${shuttle.creditCost - budget} more credits.`
-              : shuttle.emagOnly
-                ? EMAG_SHUTTLE_NOTICE
-                : undefined
-          }
+          tooltip={buttonTooltip}
           tooltipPosition="left"
         >
-          {shuttle.emagOnly ? 'Buy' : 'Purchase'}
+          {shuttle.department_locked
+            ? 'Locked'
+            : shuttle.emagOnly && !emagged
+              ? 'Buy'
+              : `${shuttle.creditCost} ${displayed_currency_name}`}
         </Button>
       }
     >
@@ -95,6 +114,15 @@ function ShuttleCard(props: ShuttleCardProps) {
       <Box color="violet" fontSize="10px" bold>
         {shuttle.prerequisites && <b>Prerequisites: {shuttle.prerequisites}</b>}
       </Box>
+      {!!shuttle.department_locked && (
+        <Box
+          color="red"
+          style={{ marginTop: '4px', fontSize: '10px', fontWeight: 'bold' }}
+        >
+          This shuttle can only be purchased if {shuttle.department_name}{' '}
+          Department has biggest number of employees!
+        </Box>
+      )}
     </Section>
   );
 }

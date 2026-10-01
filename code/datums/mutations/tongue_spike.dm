@@ -1,6 +1,6 @@
-/datum/mutation/human/tongue_spike
+/datum/mutation/tongue_spike
 	name = "Tongue Spike"
-	desc = "Allows a creature to voluntary shoot their tongue out as a deadly weapon."
+	desc = "The subject gains the ability to voluntary shoot their tongue out as a deadly weapon."
 	quality = POSITIVE
 	text_gain_indication = span_notice("Your feel like you can throw your voice.")
 	instability = POSITIVE_INSTABILITY_MINI // worthless. also serves as a bit of a hint that it's not good
@@ -87,9 +87,9 @@
 	if (!QDELETED(tongue_spike)) // This can cause a qdel loop
 		tongue_spike.morph_back()
 
-/datum/mutation/human/tongue_spike/chem
+/datum/mutation/tongue_spike/chem
 	name = "Chem Spike"
-	desc = "Allows a creature to voluntary shoot their tongue out as biomass, allowing a long range transfer of chemicals."
+	desc = "The subject gains the ability to voluntary shoot their tongue out as biomass, allowing a long range transfer of chemicals."
 	quality = POSITIVE
 	text_gain_indication = span_notice("Your feel like you can really connect with people by throwing your voice.")
 	instability = POSITIVE_INSTABILITY_MINOR // slightly less worthless. slightly.
@@ -159,7 +159,7 @@
 	if(!istype(target, /obj/item/hardened_spike/chem))
 		qdel(src)
 
-/datum/action/send_chems/Trigger(trigger_flags)
+/datum/action/send_chems/Trigger(mob/clicker, trigger_flags)
 	. = ..()
 	if(!.)
 		return FALSE

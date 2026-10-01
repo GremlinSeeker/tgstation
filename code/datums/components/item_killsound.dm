@@ -28,7 +28,7 @@
 	var/obj/item/item_parent = parent
 	RegisterSignal(item_parent, COMSIG_ITEM_ATTACK, PROC_REF(on_attack))
 
-/datum/component/item_killsound/proc/on_attack(host, target_mob, user, params)
+/datum/component/item_killsound/proc/on_attack(host, target_mob, user, list/modifiers)
 	SIGNAL_HANDLER
 
 	if(!allowed_mobs || is_type_in_list(target_mob, allowed_mobs))
@@ -36,6 +36,6 @@
 			return
 		var/mob/living/mob = target_mob
 		if(replace_default_death_sound)
-			mob.apply_status_effect(/datum/status_effect/replace_death_sound, 1 SECONDS, killsound)
+			mob.apply_status_effect(/datum/status_effect/replace_sound, 1 SECONDS, list(/datum/emote/living/deathgasp::key = killsound))
 		else
 			mob.apply_status_effect(/datum/status_effect/death_sound, 1 SECONDS, killsound, killsound_volume)

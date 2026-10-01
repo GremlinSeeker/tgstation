@@ -67,6 +67,7 @@
 /obj/structure/alien/resin/Initialize(mapload)
 	. = ..()
 	air_update_turf(TRUE, TRUE)
+	ADD_TRAIT(src, TRAIT_INVERTED_DEMOLITION, INNATE_TRAIT)
 
 /obj/structure/alien/resin/Destroy()
 	air_update_turf(TRUE, FALSE)
@@ -428,11 +429,11 @@
 		// TECHNICALLY you could put non-facehuggers in the child var
 		if(istype(child))
 			if(kill)
-				child.Die()
+				child.die()
 			else
 				for(var/mob/M in range(1,src))
 					if(CanHug(M))
-						child.Leap(M)
+						child.leap_to(M)
 						break
 
 /obj/structure/alien/egg/Exited(atom/movable/gone, direction)
@@ -457,7 +458,7 @@
 			return
 
 		var/mob/living/carbon/C = AM
-		if(C.stat == CONSCIOUS && C.get_organ_by_type(/obj/item/organ/body_egg/alien_embryo))
+		if(!IS_UNCONSCIOUS_OR_CRIT(C) && C.get_organ_by_type(/obj/item/organ/body_egg/alien_embryo))
 			return
 
 		Burst(kill=FALSE)

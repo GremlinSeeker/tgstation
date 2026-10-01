@@ -6,7 +6,7 @@ import {
   Section,
   Stack,
 } from 'tgui-core/components';
-import { BooleanLike } from 'tgui-core/react';
+import type { BooleanLike } from 'tgui-core/react';
 
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
@@ -93,7 +93,7 @@ export const ProcCallMenu = (props) => {
                         datatype: type,
                       })
                     }
-                    onEnter={(e, value) =>
+                    onEnter={(value) =>
                       act('rename_argument', {
                         index: index + 1,
                         name: value,

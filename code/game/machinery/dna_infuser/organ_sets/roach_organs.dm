@@ -20,21 +20,16 @@
 	/// Armor type attached to the owner's physiology
 	var/datum/armor/given_armor = /datum/armor/roach_internal_armor
 
-/datum/status_effect/organ_set_bonus/roach/enable_bonus()
+/datum/status_effect/organ_set_bonus/roach/enable_bonus(obj/item/organ/inserted_organ)
 	. = ..()
-	if(!ishuman(owner))
+	owner.add_inner_armor(given_armor)
+
+/datum/status_effect/organ_set_bonus/roach/disable_bonus(obj/item/organ/removed_organ)
+	. = ..()
+	if(QDELETED(owner))
 		return
 
-	var/mob/living/carbon/human/human_owner = owner
-	human_owner.physiology.armor = human_owner.physiology.armor.add_other_armor(given_armor)
-
-/datum/status_effect/organ_set_bonus/roach/disable_bonus()
-	. = ..()
-	if(!ishuman(owner) || QDELETED(owner))
-		return
-
-	var/mob/living/carbon/human/human_owner = owner
-	human_owner.physiology.armor = human_owner.physiology.armor.subtract_other_armor(given_armor)
+	owner.remove_inner_armor(given_armor)
 
 /// Roach heart:
 /// Reduces damage taken from brute attacks from behind,
@@ -44,8 +39,9 @@
 	desc = "Roach DNA infused into what was once a normal heart."
 	maxHealth = 2 * STANDARD_ORGAN_THRESHOLD
 
-	icon = 'icons/obj/medical/organs/infuser_organs.dmi'
-	icon_state = "heart"
+	icon = 'icons/map_icons/items/_item.dmi'
+	icon_state = "/obj/item/organ/heart/roach"
+	post_init_icon_state = "heart"
 	greyscale_config = /datum/greyscale_config/mutant_organ
 	greyscale_colors = ROACH_COLORS
 
@@ -74,7 +70,7 @@
 
 	RegisterSignal(human_owner, COMSIG_MOB_APPLY_DAMAGE_MODIFIERS, PROC_REF(modify_damage))
 	RegisterSignal(human_owner, COMSIG_MOB_AFTER_APPLY_DAMAGE, PROC_REF(do_block_effect))
-	human_owner.physiology.knockdown_mod *= 3
+	MODIFY_PHYSIOLOGY(owner, PHYS_COEFF_KNOCKDOWN, 3)
 
 /obj/item/organ/heart/roach/on_bodypart_insert(obj/item/bodypart/limb)
 	. = ..()
@@ -82,13 +78,11 @@
 
 /obj/item/organ/heart/roach/on_mob_remove(mob/living/carbon/organ_owner, special, movement_flags)
 	. = ..()
-	if(!ishuman(organ_owner) || QDELETED(organ_owner))
+	if(QDELETED(organ_owner))
 		return
 
-	var/mob/living/carbon/human/human_owner = organ_owner
-
-	UnregisterSignal(human_owner, list(COMSIG_MOB_APPLY_DAMAGE_MODIFIERS, COMSIG_MOB_AFTER_APPLY_DAMAGE))
-	human_owner.physiology.knockdown_mod /= 3
+	UnregisterSignal(organ_owner, list(COMSIG_MOB_APPLY_DAMAGE_MODIFIERS, COMSIG_MOB_AFTER_APPLY_DAMAGE))
+	MODIFY_PHYSIOLOGY(organ_owner, PHYS_COEFF_KNOCKDOWN, 1/3)
 
 /obj/item/organ/heart/roach/on_bodypart_remove(obj/item/bodypart/limb)
 	. = ..()
@@ -113,7 +107,7 @@
  *
  * Does a special effect if we blocked damage with our back
  */
-/obj/item/organ/heart/roach/proc/do_block_effect(mob/living/carbon/human/source, damage_dealt, damagetype, def_zone, blocked, wound_bonus, bare_wound_bonus, sharpness, attack_direction, obj/item/attacking_item)
+/obj/item/organ/heart/roach/proc/do_block_effect(mob/living/carbon/human/source, damage_dealt, damagetype, def_zone, blocked, wound_bonus, exposed_wound_bonus, sharpness, attack_direction, obj/item/attacking_item)
 	SIGNAL_HANDLER
 
 	if(!is_blocking(source, damage_dealt, damagetype, attack_direction))
@@ -129,7 +123,7 @@
 /obj/item/organ/heart/roach/proc/is_blocking(mob/living/carbon/human/blocker, damage_amount, damagetype, attack_direction)
 	if(damage_amount < 5 || damagetype != BRUTE || !attack_direction)
 		return
-	if(!ishuman(blocker) || blocker.stat >= UNCONSCIOUS)
+	if(!ishuman(blocker) || IS_UNCONSCIOUS(blocker))
 		return FALSE
 	// No tactical spinning
 	if(HAS_TRAIT(blocker, TRAIT_SPINNING))
@@ -141,13 +135,18 @@
 // Simple overlay so we can add a roach shell to guys with roach hearts
 /datum/bodypart_overlay/simple/roach_shell
 	icon_state = "roach_shell"
-	layers = EXTERNAL_FRONT|EXTERNAL_BEHIND
+	layers = list(
+		EXTERNAL_FRONT = BODY_FRONT_LAYER,
+		EXTERNAL_BEHIND = BODY_BEHIND_LAYER,
+	)
+	draw_on_husks = HUSK_OVERLAY_GRAYSCALE
+	offset_location = ENTIRE_BODY
 
-/datum/bodypart_overlay/simple/roach_shell/get_image(image_layer, obj/item/bodypart/limb)
+/datum/bodypart_overlay/simple/roach_shell/get_image(obj/item/bodypart/limb, layer_index, layer_real)
 	return image(
 		icon = icon,
-		icon_state = "[icon_state]_[mutant_bodyparts_layertext(image_layer)]",
-		layer = image_layer,
+		icon_state = "[icon_state]_[layer_index]",
+		layer = layer_real,
 	)
 
 /// Roach stomach:
@@ -161,8 +160,9 @@
 	metabolism_efficiency = 0.033 // Slightly worse at transferring reagents
 	hunger_modifier = 3
 
-	icon = 'icons/obj/medical/organs/infuser_organs.dmi'
-	icon_state = "stomach"
+	icon = 'icons/map_icons/items/_item.dmi'
+	icon_state = "/obj/item/organ/stomach/roach"
+	post_init_icon_state = "stomach"
 	greyscale_config = /datum/greyscale_config/mutant_organ
 	greyscale_colors = ROACH_COLORS
 
@@ -179,8 +179,9 @@
 	toxTolerance = 5 // More tolerance for toxins
 	liver_resistance = 0.25 // But if they manage to get in you're screwed
 
-	icon = 'icons/obj/medical/organs/infuser_organs.dmi'
-	icon_state = "liver"
+	icon = 'icons/map_icons/items/_item.dmi'
+	icon_state = "/obj/item/organ/liver/roach"
+	post_init_icon_state = "liver"
 	greyscale_config = /datum/greyscale_config/mutant_organ
 	greyscale_colors = ROACH_COLORS
 
@@ -190,19 +191,14 @@
 
 /obj/item/organ/liver/roach/on_mob_insert(mob/living/carbon/organ_owner, special, movement_flags)
 	. = ..()
-	if(!ishuman(organ_owner))
-		return
-
-	var/mob/living/carbon/human/human_owner = owner
-	human_owner.physiology.tox_mod *= 2
+	MODIFY_PHYSIOLOGY(owner, TOX, 2)
 
 /obj/item/organ/liver/roach/on_mob_remove(mob/living/carbon/organ_owner, special, movement_flags)
 	. = ..()
-	if(!ishuman(organ_owner) || QDELETED(organ_owner))
+	if(QDELETED(organ_owner))
 		return
 
-	var/mob/living/carbon/human/human_owner = organ_owner
-	human_owner.physiology.tox_mod *= 0.5
+	MODIFY_PHYSIOLOGY(organ_owner, TOX, 0.5)
 
 /// Roach appendix:
 /// No appendicitus! weee!
@@ -211,8 +207,9 @@
 	desc = "Roach DNA infused into what was once a normal appendix. It could get <i>worse</i>?"
 	maxHealth = 2 * STANDARD_ORGAN_THRESHOLD
 
-	icon = 'icons/obj/medical/organs/infuser_organs.dmi'
-	icon_state = "appendix"
+	icon = 'icons/map_icons/items/_item.dmi'
+	icon_state = "/obj/item/organ/appendix/roach"
+	post_init_icon_state = "appendix"
 	greyscale_config = /datum/greyscale_config/mutant_organ
 	greyscale_colors = ROACH_COLORS
 

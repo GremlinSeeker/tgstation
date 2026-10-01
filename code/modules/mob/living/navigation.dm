@@ -1,6 +1,8 @@
 #define MAX_NAVIGATE_RANGE 125
 
 /mob/living
+	/// Are we currently pathfinding for the navigate verb?
+	var/navigating = FALSE
 	/// Cooldown of the navigate() verb.
 	COOLDOWN_DECLARE(navigate_cooldown)
 
@@ -8,9 +10,7 @@
 	/// Images of the path created by navigate().
 	var/list/navigation_images = list()
 
-/mob/living/verb/navigate()
-	set name = "Navigate"
-	set category = "IC"
+GAME_VERB_HIDDEN(/mob/living, navigate, "Navigate")
 
 	if(incapacitated)
 		return
@@ -18,24 +18,27 @@
 		addtimer(CALLBACK(src, PROC_REF(cut_navigation)), world.tick_lag)
 		balloon_alert(src, "navigation path removed")
 		return
+	if(navigating)
+		balloon_alert(src, "busy navigating!")
+		return
 	if(!COOLDOWN_FINISHED(src, navigate_cooldown))
 		balloon_alert(src, "navigation on cooldown!")
 		return
 	addtimer(CALLBACK(src, PROC_REF(create_navigation)), world.tick_lag)
 
 /mob/living/proc/create_navigation()
-	var/can_go_down = SSmapping.level_trait(z, ZTRAIT_DOWN)
-	var/can_go_up = SSmapping.level_trait(z, ZTRAIT_UP)
 	var/list/destination_list = list()
 	for(var/atom/destination as anything in GLOB.navigate_destinations)
 		if(get_dist(destination, src) > MAX_NAVIGATE_RANGE)
 			continue
 		var/destination_name = GLOB.navigate_destinations[destination]
-		if(destination.z != z && (can_go_down || can_go_up)) // up or down is just a good indicator "we're on the station", we don't need to check specifics
+		if(destination.z != z && is_multi_z_level(z)) // up or down is just a good indicator "we're on the station", we don't need to check specifics
 			destination_name += ((get_dir_multiz(src, destination) & UP) ? " (Above)" : " (Below)")
 
 		destination_list[destination_name] = destination
 
+	var/can_go_down = SSmapping.level_trait(z, ZTRAIT_DOWN)
+	var/can_go_up = SSmapping.level_trait(z, ZTRAIT_UP)
 	if(can_go_down)
 		destination_list["Nearest Way Down"] = DOWN
 	if(can_go_up)
@@ -47,10 +50,13 @@
 
 	var/platform_code = tgui_input_list(src, "Select a location", "Navigate", sort_list(destination_list))
 	var/atom/navigate_target = destination_list[platform_code]
+	create_navigation_line(navigate_target)
 
+/mob/living/proc/create_navigation_line(atom/navigate_target)
 	if(isnull(navigate_target) || incapacitated)
 		return
 
+	cut_navigation()
 
 	var/finding_zchange = FALSE
 	COOLDOWN_START(src, navigate_cooldown, 15 SECONDS)
@@ -70,10 +76,18 @@
 		finding_zchange = TRUE
 
 	if(!isatom(navigate_target))
-		stack_trace("Navigate target ([navigate_target]) is not an atom, somehow.")
-		return
+		CRASH("Navigate target ([navigate_target]) is not an atom, somehow.")
 
-	var/list/path = get_path_to(src, navigate_target, MAX_NAVIGATE_RANGE, mintargetdist = 1, access = get_access(), skip_first = FALSE)
+	navigating = TRUE
+	var/datum/callback/await = list(CALLBACK(src, PROC_REF(finish_navigation), navigate_target, finding_zchange))
+	if(!SSpathfinder.pathfind(src, navigate_target, MAX_NAVIGATE_RANGE, mintargetdist = 1, access = get_access(), skip_first = FALSE, on_finish = await))
+		navigating = FALSE
+		balloon_alert(src, "failed to begin navigation!")
+
+/mob/living/proc/finish_navigation(turf/navigate_target, finding_zchange, list/path)
+	navigating = FALSE
+	if(!client)
+		return
 	if(!length(path))
 		balloon_alert(src, "no valid path with current access!")
 		return
@@ -116,6 +130,9 @@
 
 /mob/living/proc/cut_navigation()
 	SIGNAL_HANDLER
+	if(!length(client.navigation_images))
+		return
+
 	for(var/image/navigation_path in client.navigation_images)
 		client.images -= navigation_path
 	client.navigation_images.Cut()
